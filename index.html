@@ -308,7 +308,40 @@ body{
    Markers
    ========================================================================== */
 .pin-wrap{will-change:transform;}
+
+/* Leader line from a fanned pin back to its real coordinate. */
+.pin-leader{
+  position:absolute;
+  left:0; top:0;
+  overflow:visible;
+  opacity:0;
+  pointer-events:none;
+}
+.pin-leader.on{opacity:1;}
+.pin-leader line{stroke:var(--navy); stroke-width:1.4; stroke-dasharray:2 2; opacity:.55;}
+.pin-leader circle{fill:var(--navy); opacity:.55;}
+
+/* Stands in for a group too large to fan out. */
+.pin-count{
+  position:absolute;
+  top:-7px; right:-10px;
+  min-width:16px;
+  height:16px;
+  padding:0 4px;
+  border-radius:50px;
+  background:var(--navy);
+  border:2px solid #fff;
+  color:#fff;
+  font-size:9.5px;
+  font-weight:700;
+  line-height:12px;
+  text-align:center;
+  font-variant-numeric:tabular-nums;
+}
+.pin-count[hidden]{display:none;}
+
 .pin{
+  position:relative;
   display:block;
   padding:0;
   border:none;
@@ -894,6 +927,21 @@ body{
   var MAX_ZOOM = 16;
   var CLUSTER_RADIUS = 34;
 
+  /* Clustering stops two zooms below the map's maximum, so once you are down
+     at street level the group becomes individual pins again — at that scale
+     you can see they are separate shops and a count bubble just hides them.
+
+     What is left above that zoom is listings too close to ever separate (the
+     same shopping centre, or one coordinate shared by two records). Those get
+     fanned apart with a leader line back to the true point, so the offset is
+     shown rather than hidden, and at this zoom it is only metres wide. */
+  var CLUSTER_MAX_ZOOM = 14;
+  // Only fan pins that genuinely cover each other. Partly overlapping pins are
+  // still both visible and clickable, and leaving them where they belong beats
+  // moving them for tidiness.
+  var SPIDER_DIST = 14;
+  var SPIDER_MAX = 8;     // beyond this a ring is unreadable — stack instead
+
   /* --- elements --------------------------------------------------------- */
 
   var el = {
@@ -1332,25 +1380,144 @@ body{
     var wrap = document.createElement("div");
     wrap.className = "pin-wrap";
 
+    // Leader line back to the true coordinate, drawn only when fanned. It
+    // lives inside the marker, so it tracks the pin with no redraw on pan.
+    var leader = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    leader.setAttribute("class", "pin-leader");
+    leader.setAttribute("viewBox", "0 0 28 36");
+    leader.setAttribute("width", "28");
+    leader.setAttribute("height", "36");
+    leader.setAttribute("aria-hidden", "true");
+    leader.innerHTML = '<line x1="14" y1="34.8" x2="14" y2="34.8"/><circle cx="14" cy="34.8" r="2.6"/>';
+
     var button = document.createElement("button");
     button.type = "button";
     button.className = "pin";
-    button.innerHTML = pinSVG(mmmColor(p.mmm), rec.intern);
-    button.setAttribute("aria-label",
-      (p.name || "Pharmacy") + ", " + (p.address || "") + ". " + mmmLabel(p.mmm) + ". "
-      + (rec.intern ? "Taking interns." : "Not currently taking interns."));
+    button.innerHTML = pinSVG(mmmColor(p.mmm), rec.intern)
+      + '<span class="pin-count" hidden></span>';
     if (activeRec === rec) button.classList.add("is-active");
-    button.addEventListener("click", function(){ openDetail(rec, button); });
+
+    var entry = { marker: null, rec: rec, leader: leader, button: button, stack: null };
+
+    button.addEventListener("click", function(){
+      // A stacked pin stands in for several listings at one point.
+      if (entry.stack && entry.stack.length > 1){
+        openList(entry.stack, entry.stack.length + " pharmacies here",
+          "These listings share the same spot on the map.", button);
+      } else {
+        openDetail(rec, button);
+      }
+    });
+
+    wrap.appendChild(leader);
     wrap.appendChild(button);
 
-    var marker = new maplibregl.Marker({
+    entry.marker = new maplibregl.Marker({
       element: wrap,
       anchor: "bottom",
       offset: [0, 1.2]   // drops the anchor from the box edge onto the pin tip
     }).setLngLat([p.lng, p.lat]).addTo(map);
 
+    entry.wrap = wrap;
     rec.button = button;
-    domMarkers[rec.id] = { marker: marker, rec: rec };
+    domMarkers[rec.id] = entry;
+    labelMarker(entry, null);
+  }
+
+  function labelMarker(entry, stack){
+    var rec = entry.rec, p = rec.data;
+    var base = (p.name || "Pharmacy") + ", " + (p.address || "") + ". "
+      + mmmLabel(p.mmm) + ". "
+      + (rec.intern ? "Taking interns." : "Not currently taking interns.");
+    entry.button.setAttribute("aria-label",
+      stack && stack.length > 1
+        ? stack.length + " pharmacies at this location, including " + base
+        : base);
+  }
+
+  /* Ring offsets for a fanned group. Squashed vertically so the pins sit in a
+     shallow arc rather than a circle, which reads better against a map. */
+  function spiderOffsets(n){
+    if (n === 2) return [[-15, -3], [15, -3]];
+    var out = [], r = 15 + n * 2.4;
+    for (var i = 0; i < n; i++){
+      var a = (Math.PI * 2 * i / n) - Math.PI / 2;
+      out.push([Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r * 0.78)]);
+    }
+    return out;
+  }
+
+  function setFan(entry, ox, oy, stack){
+    entry.marker.setOffset([ox, oy + 1.2]);
+
+    var line = entry.leader.firstChild;
+    var dot = entry.leader.lastChild;
+    // The true coordinate sits at -offset from the pin tip, in marker space.
+    line.setAttribute("x2", 14 - ox);
+    line.setAttribute("y2", 34.8 - oy);
+    dot.setAttribute("cx", 14 - ox);
+    dot.setAttribute("cy", 34.8 - oy);
+    entry.leader.classList.toggle("on", !!(ox || oy));
+
+    var badge = entry.button.querySelector(".pin-count");
+    if (stack && stack.length > 1){
+      badge.textContent = stack.length;
+      badge.hidden = false;
+    } else {
+      badge.hidden = true;
+    }
+
+    entry.stack = stack;
+    entry.wrap.style.display = "";
+    labelMarker(entry, stack);
+  }
+
+  /* Above CLUSTER_MAX_ZOOM there is no clustering, so pins can still land on
+     top of each other. Group by screen distance — which is what "overlapping"
+     actually means — and fan, stack, or leave each group alone. */
+  function regroup(){
+    var list = [];
+    Object.keys(domMarkers).forEach(function(k){
+      var m = domMarkers[k];
+      m.px = map.project([m.rec.data.lng, m.rec.data.lat]);
+      m.seen = false;
+      list.push(m);
+    });
+
+    list.forEach(function(m){
+      if (m.seen) return;
+      var group = [m];
+      m.seen = true;
+      list.forEach(function(o){
+        if (o.seen) return;
+        var dx = o.px.x - m.px.x, dy = o.px.y - m.px.y;
+        if (dx * dx + dy * dy <= SPIDER_DIST * SPIDER_DIST){
+          o.seen = true;
+          group.push(o);
+        }
+      });
+
+      if (group.length === 1){
+        setFan(group[0], 0, 0, null);
+        return;
+      }
+
+      var recs = group.map(function(g){ return g.rec; });
+
+      if (group.length > SPIDER_MAX){
+        // Too many for a readable ring: one pin carries the count, the rest
+        // hide behind it, and clicking opens the list.
+        setFan(group[0], 0, 0, recs);
+        for (var i = 1; i < group.length; i++){
+          group[i].wrap.style.display = "none";
+          group[i].stack = null;
+        }
+        return;
+      }
+
+      var offs = spiderOffsets(group.length);
+      group.forEach(function(g, i){ setFan(g, offs[i][0], offs[i][1], null); });
+    });
   }
 
   var syncQueued = false;
@@ -1380,6 +1547,8 @@ body{
         delete domMarkers[k];
       }
     });
+
+    regroup();
   }
 
   // MapLibre 4 returns promises here; tolerate a callback build too.
@@ -1460,7 +1629,7 @@ body{
       data: collectionOf([]),
       cluster: true,
       clusterRadius: CLUSTER_RADIUS,
-      clusterMaxZoom: MAX_ZOOM
+      clusterMaxZoom: CLUSTER_MAX_ZOOM
     });
 
     map.addLayer({
