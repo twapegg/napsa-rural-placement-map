@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>NAPSA Rural Placement Map</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.2/maplibre-gl.css" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.2/maplibre-gl.js"></script>
+
+<style>
+  :root{
+    --bg: #eef2fb;
+    --ink: #1b0a6b;
+    --ink-soft: #5b6478;
+    --primary: #1b6b45;
+    --primary-dark: #124f34;
+    --accent: #1b0a6b;
+    --accent-soft: #6a5ecb;
+    --line: #dbe1ee;
+    --panel: #ffffff;
+    --mmm1: #7fae86;
+    --mmm2: #c9a24a;
+    --mmm3: #d97e3a;
+    --mmm4: #c1652f;
+    --mmm5: #9c3f2c;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; height:100%;
+    font-family:'Public Sans', -apple-system, sans-serif;
+    color:var(--ink);
+    background:var(--bg);
+  }
+  #map{position:absolute; inset:0;}
+
+  .brandbar{
+    position:absolute; top:16px; left:16px; z-index:5;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:14px 18px;
+    box-shadow:0 4px 18px rgba(35,50,43,0.14);
+    max-width:280px;
+  }
+  .brandbar h1{
+    font-family:'Poppins', sans-serif;
+    font-weight:700;
+    font-size:19px;
+    line-height:1.2;
+    margin:0 0 4px 0;
+    color:var(--ink);
+  }
+  .brandbar p{
+    margin:0;
+    font-size:13px;
+    color:var(--ink-soft);
+    line-height:1.4;
+  }
+
+  .legend{
+    position:absolute; bottom:20px; left:16px; z-index:5;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:12px 16px;
+    box-shadow:0 4px 18px rgba(35,50,43,0.14);
+    font-size:12.5px;
+  }
+  .legend-title{
+    font-weight:600;
+    margin-bottom:8px;
+    color:var(--primary-dark);
+  }
+  .legend-row{display:flex; align-items:center; gap:8px; margin:4px 0;}
+  .legend-dot{width:11px; height:11px; border-radius:50%; flex:none;}
+
+  .panel{
+    position:absolute; top:0; right:0; bottom:0; z-index:6;
+    width:380px; max-width:88vw;
+    background:var(--panel);
+    box-shadow:-6px 0 24px rgba(35,50,43,0.18);
+    transform:translateX(100%);
+    transition:transform 0.28s ease;
+    overflow-y:auto;
+    border-left:1px solid var(--line);
+  }
+  .panel.open{transform:translateX(0);}
+  .panel-inner{padding:26px 24px 40px;}
+  .panel-close{
+    position:absolute; top:16px; right:16px;
+    background:none; border:none; font-size:22px; line-height:1;
+    color:var(--ink-soft); cursor:pointer; padding:4px;
+  }
+  .panel-close:hover{color:var(--ink);}
+  .panel h2{
+    font-family:'Poppins', sans-serif;
+    font-weight:700;
+    font-size:21px;
+    margin:0 20px 4px 0;
+    color:var(--ink);
+    line-height:1.25;
+  }
+  .panel .address{
+    font-size:14px;
+    color:var(--ink-soft);
+    margin-bottom:14px;
+  }
+  .mmm-badge{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:12.5px; font-weight:600;
+    padding:4px 10px;
+    border-radius:20px;
+    background:#f0ece1;
+    color:var(--ink);
+    margin-bottom:18px;
+  }
+  .mmm-badge .dot{width:9px; height:9px; border-radius:50%;}
+
+  .field{margin-bottom:16px;}
+  .field-label{
+    font-size:11.5px; font-weight:700; text-transform:none;
+    color:var(--accent); margin-bottom:4px;
+  }
+  .field-value{
+    font-size:14px; line-height:1.5; color:var(--ink);
+    white-space:pre-line;
+  }
+  .field-value a{color:var(--primary); text-decoration:none; border-bottom:1px solid var(--accent-soft);}
+  .divider{height:1px; background:var(--line); margin:18px 0;}
+
+  .maplibregl-popup-content{
+    font-family:'Public Sans', sans-serif;
+    border-radius:8px;
+    padding:10px 14px;
+  }
+  .maplibregl-popup-content strong{color:var(--primary-dark);}
+
+  .loading{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    z-index:4; font-size:14px; color:var(--ink-soft);
+  }
+
+  @media (max-width:640px){
+    .brandbar{max-width:220px; padding:10px 14px;}
+    .brandbar h1{font-size:16px;}
+    .brandbar p{display:none;}
+    .legend{padding:10px 12px; font-size:11.5px;}
+    .panel{width:100%;}
+  }
+</style>
+</head>
+<body>
+
+<div id="map"></div>
+<div class="loading" id="loading">Loading pharmacies…</div>
+
+<div class="brandbar">
+  <h1>NAPSA Rural Placement Map</h1>
+  <p>Click a pin to see what a pharmacy offers before you choose your placement.</p>
+</div>
+
+<div class="legend">
+  <div class="legend-title">Remoteness (MMM)</div>
+  <div class="legend-row"><span class="legend-dot" style="background:var(--mmm1)"></span> MMM 1–2 · Metro/regional</div>
+  <div class="legend-row"><span class="legend-dot" style="background:var(--mmm2)"></span> MMM 3 · Large rural town</div>
+  <div class="legend-row"><span class="legend-dot" style="background:var(--mmm3)"></span> MMM 4–5 · Medium/small rural</div>
+  <div class="legend-row"><span class="legend-dot" style="background:var(--mmm4)"></span> MMM 6 · Remote</div>
+  <div class="legend-row"><span class="legend-dot" style="background:var(--mmm5)"></span> MMM 7 · Very remote</div>
+</div>
+
+<div class="panel" id="panel">
+  <button class="panel-close" id="panelClose" aria-label="Close">&times;</button>
+  <div class="panel-inner" id="panelInner"></div>
+</div>
+
+<script>
+const DATA_URL = "https://locumco.awesomate.io/webhook/napsa-pharmacies";
+
+function mmmColor(mmm){
+  const n = parseInt(mmm, 10);
+  if (n <= 2) return getComputedStyle(document.documentElement).getPropertyValue('--mmm1').trim();
+  if (n === 3) return getComputedStyle(document.documentElement).getPropertyValue('--mmm2').trim();
+  if (n === 4 || n === 5) return getComputedStyle(document.documentElement).getPropertyValue('--mmm3').trim();
+  if (n === 6) return getComputedStyle(document.documentElement).getPropertyValue('--mmm4').trim();
+  return getComputedStyle(document.documentElement).getPropertyValue('--mmm5').trim();
+}
+
+function mmmLabel(mmm){
+  const n = parseInt(mmm, 10);
+  if (n <= 2) return "Metro / Regional centre";
+  if (n === 3) return "Large rural town";
+  if (n === 4) return "Medium rural town";
+  if (n === 5) return "Small rural town";
+  if (n === 6) return "Remote community";
+  return "Very remote community";
+}
+
+function field(label, value){
+  if (!value) return "";
+  return `<div class="field"><div class="field-label">${label}</div><div class="field-value">${escapeHtml(value)}</div></div>`;
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function openPanel(p){
+  const inner = document.getElementById('panelInner');
+  const color = mmmColor(p.mmm);
+  inner.innerHTML = `
+    <h2>${escapeHtml(p.name)}</h2>
+    <div class="address">${escapeHtml(p.address)}</div>
+    <div class="mmm-badge"><span class="dot" style="background:${color}"></span>MMM ${escapeHtml(p.mmm || '—')} · ${mmmLabel(p.mmm)}</div>
+    ${field("Services & experience offered", p.services)}
+    ${field("Intern pharmacist position available", p.internPosition)}
+    ${field("Accommodation", p.accommodation)}
+    <div class="divider"></div>
+    ${field("Contact", p.contactPerson)}
+    ${field("Phone", p.phone)}
+    ${field("Email", p.email ? `<a href="mailto:${escapeHtml(p.email)}">${escapeHtml(p.email)}</a>` : "")}
+  `;
+  document.getElementById('panel').classList.add('open');
+}
+
+document.getElementById('panelClose').addEventListener('click', () => {
+  document.getElementById('panel').classList.remove('open');
+});
+
+const map = new maplibregl.Map({
+  container: 'map',
+  style: 'https://tiles.openfreemap.org/styles/liberty',
+  center: [134.0, -25.5],
+  zoom: 3.6,
+  attributionControl: true
+});
+map.addControl(new maplibregl.NavigationControl(), 'top-right');
+
+map.on('load', () => {
+  fetch(DATA_URL)
+    .then(res => res.json())
+    .then(data => {
+      document.getElementById('loading').style.display = 'none';
+      const pharmacies = (data.pharmacies || []).filter(p => p.lat && p.lng);
+
+      const bounds = new maplibregl.LngLatBounds();
+
+      pharmacies.forEach(p => {
+        const el = document.createElement('div');
+        el.style.width = '22px';
+        el.style.height = '22px';
+        el.style.borderRadius = '50% 50% 50% 0';
+        el.style.transform = 'rotate(-45deg)';
+        el.style.background = mmmColor(p.mmm);
+        el.style.border = '2px solid #fffefb';
+        el.style.boxShadow = '0 2px 6px rgba(35,50,43,0.35)';
+        el.style.cursor = 'pointer';
+
+        const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
+          .setLngLat([p.lng, p.lat])
+          .addTo(map);
+
+        el.addEventListener('click', () => openPanel(p));
+        bounds.extend([p.lng, p.lat]);
+      });
+
+      if (pharmacies.length > 0) {
+        map.fitBounds(bounds, { padding: 60, maxZoom: 6, duration: 0 });
+      }
+    })
+    .catch(err => {
+      document.getElementById('loading').textContent = 'Could not load pharmacy data. Please refresh.';
+      console.error(err);
+    });
+});
+</script>
+
+</body>
+</html>
