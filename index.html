@@ -1,282 +1,1207 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Find Australian pharmacies offering intern placements in rural and remote communities. An interactive map from NAPSA, supported by LocumCo.">
+<meta name="theme-color" content="#0D0056">
 <title>NAPSA Rural Placement Map</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 28 36'%3E%3Cpath d='M14 34.8C14 34.8 25 21.5 25 14A11 11 0 1 0 3 14C3 21.5 14 34.8 14 34.8Z' fill='%230D0056'/%3E%3Ccircle cx='14' cy='14' r='4.2' fill='%2360BEFF'/%3E%3C/svg%3E">
 
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-<link href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.2/maplibre-gl.css" rel="stylesheet" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.2/maplibre-gl.css" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/maplibre-gl/4.1.2/maplibre-gl.js"></script>
 
 <style>
-  :root{
-    --bg: #eef2fb;
-    --ink: #1b0a6b;
-    --ink-soft: #5b6478;
-    --primary: #1b6b45;
-    --primary-dark: #124f34;
-    --accent: #1b0a6b;
-    --accent-soft: #6a5ecb;
-    --line: #dbe1ee;
-    --panel: #ffffff;
-    --mmm1: #7fae86;
-    --mmm2: #c9a24a;
-    --mmm3: #d97e3a;
-    --mmm4: #c1652f;
-    --mmm5: #9c3f2c;
-  }
-  *{box-sizing:border-box;}
-  html,body{
-    margin:0; padding:0; height:100%;
-    font-family:'Public Sans', -apple-system, sans-serif;
-    color:var(--ink);
-    background:var(--bg);
-  }
-  #map{position:absolute; inset:0;}
+/* ==========================================================================
+   NAPSA Rural Placement Map
+   Design tokens mirror napsa.org.au: Inter, navy #0D0056, sky #60BEFF,
+   coral #FF6361, periwinkle #8A91D7, 10px cards, 50px pill buttons.
+   ========================================================================== */
+:root{
+  /* --- NAPSA brand ------------------------------------------------------ */
+  --navy:#0D0056;
+  --navy-2:#1C0D72;
+  --sky:#60BEFF;
+  --coral:#FF6361;
+  --peri:#8A91D7;
 
-  .brandbar{
-    position:absolute; top:16px; left:16px; z-index:5;
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:14px 18px;
-    box-shadow:0 4px 18px rgba(35,50,43,0.14);
-    max-width:280px;
-  }
-  .brandbar h1{
-    font-family:'Poppins', sans-serif;
-    font-weight:700;
-    font-size:19px;
-    line-height:1.2;
-    margin:0 0 4px 0;
-    color:var(--ink);
-  }
-  .brandbar p{
-    margin:0;
-    font-size:13px;
-    color:var(--ink-soft);
-    line-height:1.4;
-  }
+  /* --- surfaces & ink --------------------------------------------------- */
+  --surface:#FFFFFF;
+  --tint:#F1F4FF;
+  --line:#E0E4F2;
+  --line-strong:#C9D1E8;
+  --ink:#0D0056;          /* 18.2:1 on white */
+  --ink-soft:#5A6488;     /*  5.8:1 on white */
 
-  .legend{
-    position:absolute; bottom:20px; left:16px; z-index:5;
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:10px;
-    padding:12px 16px;
-    box-shadow:0 4px 18px rgba(35,50,43,0.14);
-    font-size:12.5px;
-  }
-  .legend-title{
-    font-weight:600;
-    margin-bottom:8px;
-    color:var(--primary-dark);
-  }
-  .legend-row{display:flex; align-items:center; gap:8px; margin:4px 0;}
-  .legend-dot{width:11px; height:11px; border-radius:50%; flex:none;}
+  /* --- status (reserved meaning, always paired with an icon + label) ----- */
+  --ok:#1B7A57;      --ok-tint:#E8F6F0;
+  --closed:#B3352F;  --closed-tint:#FFF0EF;
 
-  .panel{
-    position:absolute; top:0; right:0; bottom:0; z-index:6;
-    width:380px; max-width:88vw;
-    background:var(--panel);
-    box-shadow:-6px 0 24px rgba(35,50,43,0.18);
-    transform:translateX(100%);
-    transition:transform 0.28s ease;
-    overflow-y:auto;
-    border-left:1px solid var(--line);
-  }
-  .panel.open{transform:translateX(0);}
-  .panel-inner{padding:26px 24px 40px;}
-  .panel-close{
-    position:absolute; top:16px; right:16px;
-    background:none; border:none; font-size:22px; line-height:1;
-    color:var(--ink-soft); cursor:pointer; padding:4px;
-  }
-  .panel-close:hover{color:var(--ink);}
-  .panel h2{
-    font-family:'Poppins', sans-serif;
-    font-weight:700;
-    font-size:21px;
-    margin:0 20px 4px 0;
-    color:var(--ink);
-    line-height:1.25;
-  }
-  .panel .address{
-    font-size:14px;
-    color:var(--ink-soft);
-    margin-bottom:14px;
-  }
-  .mmm-badge{
-    display:inline-flex; align-items:center; gap:6px;
-    font-size:12.5px; font-weight:600;
-    padding:4px 10px;
-    border-radius:20px;
-    background:#f0ece1;
-    color:var(--ink);
-    margin-bottom:18px;
-  }
-  .mmm-badge .dot{width:9px; height:9px; border-radius:50%;}
+  /* --- remoteness ramp (MMM) --------------------------------------------
+     Ordinal: one hue, monotone lightness, NAPSA sky -> NAPSA navy.
+     Validated: monotone L, adjacent dL >= 0.06, light end 2.13:1 on the
+     map surface, hue spread 29deg. Do not hand-edit individual steps. */
+  --mmm-1:#50b0f5;   /* MMM 1-2  metro / regional      */
+  --mmm-2:#3993e6;   /* MMM 3    large rural town      */
+  --mmm-3:#2b6ecd;   /* MMM 4-5  medium / small rural  */
+  --mmm-4:#2444a8;   /* MMM 6    remote                */
+  --mmm-5:#181874;   /* MMM 7    very remote           */
 
-  .field{margin-bottom:16px;}
-  .field-label{
-    font-size:11.5px; font-weight:700; text-transform:none;
-    color:var(--accent); margin-bottom:4px;
-  }
-  .field-value{
-    font-size:14px; line-height:1.5; color:var(--ink);
-    white-space:pre-line;
-  }
-  .field-value a{color:var(--primary); text-decoration:none; border-bottom:1px solid var(--accent-soft);}
-  .divider{height:1px; background:var(--line); margin:18px 0;}
+  /* --- geometry --------------------------------------------------------- */
+  --r-card:10px;
+  --r-pill:50px;
+  --r-ctl:8px;
+  --shadow-sm:0 1px 2px rgba(13,0,86,.06), 0 1px 3px rgba(13,0,86,.08);
+  --shadow-md:0 4px 6px rgba(13,0,86,.05), 0 10px 20px rgba(13,0,86,.10);
+  --shadow-lg:0 10px 15px rgba(13,0,86,.06), 0 24px 48px rgba(13,0,86,.16);
+}
 
-  .maplibregl-popup-content{
-    font-family:'Public Sans', sans-serif;
-    border-radius:8px;
-    padding:10px 14px;
-  }
-  .maplibregl-popup-content strong{color:var(--primary-dark);}
+*,*::before,*::after{box-sizing:border-box;}
 
-  .loading{
-    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
-    z-index:4; font-size:14px; color:var(--ink-soft);
-  }
+html,body{height:100%;}
+body{
+  margin:0;
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  font-size:15px;
+  line-height:1.6;
+  color:var(--ink);
+  background:var(--surface);
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
 
-  @media (max-width:640px){
-    .brandbar{max-width:220px; padding:10px 14px;}
-    .brandbar h1{font-size:16px;}
-    .brandbar p{display:none;}
-    .legend{padding:10px 12px; font-size:11.5px;}
-    .panel{width:100%;}
+.app{
+  display:flex;
+  flex-direction:column;
+  height:100vh;
+  height:100dvh;
+  min-height:420px;
+}
+
+/* Ramp rule: ties the page header to the legend's remoteness scale. */
+.accentbar{
+  flex:0 0 auto;
+  height:4px;
+  background:linear-gradient(90deg,
+    var(--mmm-1) 0%,  var(--mmm-1) 20%,
+    var(--mmm-2) 20%, var(--mmm-2) 40%,
+    var(--mmm-3) 40%, var(--mmm-3) 60%,
+    var(--mmm-4) 60%, var(--mmm-4) 80%,
+    var(--mmm-5) 80%);
+}
+
+/* ==========================================================================
+   Top bar
+   ========================================================================== */
+.topbar{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px 24px;
+  flex-wrap:wrap;
+  padding:13px 20px;
+  background:var(--surface);
+}
+.brand{min-width:0;}
+.brand h1{
+  margin:0;
+  font-size:19px;
+  font-weight:800;
+  letter-spacing:-.02em;
+  line-height:1.25;
+  color:var(--ink);
+}
+.brand p{
+  margin:2px 0 0;
+  font-size:13px;
+  line-height:1.45;
+  color:var(--ink-soft);
+  max-width:46ch;
+}
+
+/* --- filter bar --------------------------------------------------------
+   Its own row, so the title and sponsor can never crowd the controls. */
+.filterbar{
+  flex:0 0 auto;
+  display:flex;
+  align-items:center;
+  gap:9px 10px;
+  flex-wrap:wrap;
+  padding:10px 20px;
+  background:var(--tint);
+  border-top:1px solid var(--line);
+  border-bottom:1px solid var(--line);
+}
+
+/* Switch: "taking interns only" — the map's primary question. */
+.switch{
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  padding:7px 14px 7px 11px;
+  border:1px solid var(--line-strong);
+  border-radius:var(--r-pill);
+  background:var(--surface);
+  font-size:13px;
+  font-weight:600;
+  color:var(--ink);
+  cursor:pointer;
+  user-select:none;
+  white-space:nowrap;
+  transition:background .18s ease, border-color .18s ease;
+}
+.switch:hover{background:var(--tint);}
+.switch input{position:absolute; opacity:0; width:0; height:0;}
+.switch .track{
+  position:relative;
+  flex:none;
+  width:34px;
+  height:20px;
+  border-radius:var(--r-pill);
+  background:var(--line-strong);
+  transition:background .18s ease;
+}
+.switch .track::after{
+  content:"";
+  position:absolute;
+  top:2px; left:2px;
+  width:16px; height:16px;
+  border-radius:50%;
+  background:var(--surface);
+  box-shadow:0 1px 3px rgba(13,0,86,.3);
+  transition:transform .18s ease;
+}
+.switch input:checked + .track{background:var(--ok);}
+.switch input:checked + .track::after{transform:translateX(14px);}
+.switch input:focus-visible + .track{outline:3px solid var(--coral); outline-offset:2px;}
+
+.field{position:relative; display:inline-flex;}
+.field select{
+  appearance:none;
+  -webkit-appearance:none;
+  font:inherit;
+  font-size:13px;
+  font-weight:600;
+  color:var(--ink);
+  background:var(--surface);
+  border:1px solid var(--line-strong);
+  border-radius:var(--r-pill);
+  padding:8px 34px 8px 14px;
+  cursor:pointer;
+  max-width:15rem;
+  text-overflow:ellipsis;
+  transition:background .18s ease, border-color .18s ease;
+}
+.field select:hover{background:var(--tint);}
+.field select:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
+.field::after{
+  content:"";
+  position:absolute;
+  right:14px; top:50%;
+  width:7px; height:7px;
+  margin-top:-5px;
+  border-right:2px solid var(--ink-soft);
+  border-bottom:2px solid var(--ink-soft);
+  transform:rotate(45deg);
+  pointer-events:none;
+}
+
+.count{
+  margin:0 0 0 auto;
+  font-size:13px;
+  font-weight:600;
+  color:var(--ink-soft);
+  white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.count b{color:var(--ink); font-weight:700;}
+
+.reset{
+  font:inherit;
+  font-size:13px;
+  font-weight:700;
+  color:var(--ink);
+  background:none;
+  border:none;
+  border-bottom:2px solid var(--sky);
+  padding:2px 1px;
+  border-radius:2px;
+  cursor:pointer;
+}
+.reset:hover{border-bottom-color:var(--coral);}
+.reset:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
+.reset[hidden]{display:none;}
+
+/* --- sponsor ----------------------------------------------------------- */
+.sponsor{
+  display:inline-flex;
+  align-items:center;
+  gap:11px;
+  flex:0 0 auto;
+  padding:7px 15px;
+  border:1px solid var(--line);
+  border-radius:var(--r-pill);
+  background:var(--tint);
+  text-decoration:none;
+  transition:border-color .18s ease, background .18s ease;
+}
+.sponsor:hover{background:var(--surface); border-color:var(--line-strong);}
+.sponsor:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
+.sponsor span{
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  line-height:1.2;
+  color:var(--ink-soft);
+  white-space:nowrap;
+}
+.sponsor img{display:block; height:19px; width:auto;}
+
+/* ==========================================================================
+   Map stage
+   ========================================================================== */
+.stage{
+  position:relative;
+  flex:1 1 auto;
+  min-height:0;
+  background:#f2f3f0;
+  isolation:isolate;
+  overflow:hidden;   /* clips the off-canvas panel */
+}
+#map{position:absolute; inset:0;}
+
+.maplibregl-ctrl-group{
+  border-radius:var(--r-ctl) !important;
+  box-shadow:var(--shadow-sm) !important;
+  border:1px solid var(--line);
+}
+.maplibregl-ctrl-group button+button{border-top:1px solid var(--line);}
+.maplibregl-ctrl-attrib{font-family:'Inter',sans-serif !important; font-size:10px !important;}
+.maplibregl-ctrl-attrib a{color:var(--ink-soft) !important;}
+.maplibregl-ctrl-scale{
+  font-family:'Inter',sans-serif !important;
+  font-size:10px !important;
+  color:var(--ink-soft) !important;
+  border-color:var(--line-strong) !important;
+  border-radius:0 0 3px 3px;
+}
+
+/* ==========================================================================
+   Markers
+   ========================================================================== */
+.pin-wrap{will-change:transform;}
+.pin-wrap[hidden]{display:none;}
+.pin{
+  display:block;
+  padding:0;
+  border:none;
+  background:none;
+  line-height:0;
+  border-radius:6px;
+  cursor:pointer;
+  transform-origin:50% 100%;
+  transition:transform .16s ease, filter .16s ease;
+  filter:drop-shadow(0 2px 3px rgba(13,0,86,.28));
+}
+.pin:hover{transform:scale(1.14);}
+.pin:focus-visible{outline:3px solid var(--coral); outline-offset:3px;}
+.pin.is-active{
+  transform:scale(1.2);
+  filter:drop-shadow(0 4px 8px rgba(13,0,86,.42));
+}
+
+/* ==========================================================================
+   Legend
+   ========================================================================== */
+.legend{
+  position:absolute;
+  left:16px; bottom:34px;
+  z-index:3;
+  width:262px;
+  max-width:calc(100% - 32px);
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--r-card);
+  box-shadow:var(--shadow-md);
+  overflow:hidden;
+}
+.legend > summary{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  padding:11px 14px;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  color:var(--ink);
+  cursor:pointer;
+  list-style:none;
+  user-select:none;
+}
+.legend > summary::-webkit-details-marker{display:none;}
+.legend > summary::after{
+  content:"";
+  width:7px; height:7px;
+  margin-left:auto;
+  border-right:2px solid var(--ink-soft);
+  border-bottom:2px solid var(--ink-soft);
+  transform:rotate(45deg);
+  transition:transform .2s ease;
+}
+.legend[open] > summary::after{transform:rotate(-135deg);}
+.legend > summary:focus-visible{outline:3px solid var(--coral); outline-offset:-3px;}
+.legend-body{padding:0 14px 13px;}
+
+/* Graduated ramp: five equal blocks, labelled by MMM band. */
+.ramp{display:flex; border-radius:5px; overflow:hidden;}
+.ramp span{flex:1; height:11px;}
+.ramp-scale{display:flex; margin-top:5px;}
+.ramp-scale span{
+  flex:1;
+  text-align:center;
+  font-size:10.5px;
+  font-weight:700;
+  color:var(--ink-soft);
+  font-variant-numeric:tabular-nums;
+}
+.ramp-ends{
+  display:flex;
+  justify-content:space-between;
+  margin-top:3px;
+  font-size:11px;
+  color:var(--ink-soft);
+}
+.legend-sep{height:1px; background:var(--line); margin:12px 0 11px;}
+.legend-key{display:flex; flex-direction:column; gap:7px;}
+.legend-key div{display:flex; align-items:center; gap:9px; font-size:12px; color:var(--ink-soft);}
+.legend-key svg{flex:none;}
+
+/* ==========================================================================
+   Overlay states (loading / error / empty)
+   ========================================================================== */
+.overlay{
+  position:absolute;
+  inset:0;
+  z-index:4;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:24px;
+  background:rgba(242,243,240,.72);
+  backdrop-filter:blur(2px);
+}
+.overlay[hidden]{display:none;}
+.overlay-card{
+  max-width:330px;
+  padding:22px 26px;
+  text-align:center;
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--r-card);
+  box-shadow:var(--shadow-lg);
+}
+.overlay-card h2{
+  margin:0 0 6px;
+  font-size:16px;
+  font-weight:700;
+  line-height:1.3;
+  color:var(--ink);
+}
+.overlay-card p{
+  margin:0;
+  font-size:13.5px;
+  line-height:1.5;
+  color:var(--ink-soft);
+}
+.overlay-card .btn{margin-top:16px;}
+.spinner{
+  width:26px; height:26px;
+  margin:0 auto 13px;
+  border:3px solid var(--line);
+  border-top-color:var(--sky);
+  border-radius:50%;
+  animation:spin .8s linear infinite;
+}
+.spinner[hidden]{display:none;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ==========================================================================
+   Buttons — NAPSA pill geometry, contrast-corrected ink
+   (NAPSA ships white-on-#60BEFF at 2.04:1; navy ink lifts it to 8.95:1)
+   ========================================================================== */
+.btn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  font:inherit;
+  font-size:14px;
+  font-weight:700;
+  line-height:1;
+  padding:13px 22px;
+  border-radius:var(--r-pill);
+  border:2px solid transparent;
+  text-decoration:none;
+  cursor:pointer;
+  transition:background .2s ease, color .2s ease, border-color .2s ease;
+}
+.btn-primary{background:var(--navy); border-color:var(--navy); color:#fff;}
+.btn-primary:hover{background:#fff; color:var(--navy);}
+.btn-secondary{background:var(--sky); border-color:var(--sky); color:var(--navy);}
+.btn-secondary:hover{background:#fff;}
+.btn:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
+
+/* ==========================================================================
+   Detail panel
+   ========================================================================== */
+.panel{
+  position:absolute;
+  top:0; right:0; bottom:0;
+  z-index:6;
+  width:400px;
+  max-width:100%;
+  background:var(--surface);
+  border-left:1px solid var(--line);
+  box-shadow:var(--shadow-lg);
+  transform:translateX(100%);
+  overflow-y:auto;
+  overscroll-behavior:contain;
+  transition:transform .3s cubic-bezier(.4,0,.2,1);
+}
+/* The closed panel carries the `inert` attribute, which keeps it out of both
+   the focus order and the accessibility tree — so it needs no visibility
+   toggle, which would otherwise block focus during the transition. */
+.panel.open{transform:translateX(0);}
+
+.panel-close{
+  position:absolute;
+  top:12px; right:12px;
+  z-index:2;
+  width:38px; height:38px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--line);
+  border-radius:50%;
+  background:var(--surface);
+  color:var(--ink-soft);
+  cursor:pointer;
+  transition:background .18s ease, color .18s ease;
+}
+.panel-close:hover{background:var(--tint); color:var(--ink);}
+.panel-close:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
+
+.panel-head{
+  /* 58px right padding clears the 38px close button at its 12px inset */
+  padding:22px 58px 18px 22px;
+  background:var(--tint);
+  border-bottom:1px solid var(--line);
+}
+.panel-head h2{
+  margin:0;
+  font-size:20px;
+  font-weight:800;
+  letter-spacing:-.02em;
+  line-height:1.25;
+  color:var(--ink);
+}
+.panel-head h2:focus{outline:none;}
+.panel-head .address{
+  margin:6px 0 0;
+  font-size:13.5px;
+  line-height:1.5;
+  color:var(--ink-soft);
+}
+.badges{display:flex; flex-wrap:wrap; gap:7px; margin-top:13px;}
+.badge{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:6px 12px 6px 9px;
+  font-size:12px;
+  font-weight:700;
+  line-height:1;
+  border-radius:var(--r-pill);
+  background:var(--surface);
+  border:1px solid var(--line);
+  color:var(--ink);
+}
+.badge .dot{width:9px; height:9px; border-radius:50%; flex:none;}
+.badge svg{flex:none;}
+.badge-ok{background:var(--ok-tint); border-color:transparent; color:var(--ok);}
+.badge-closed{background:var(--closed-tint); border-color:transparent; color:var(--closed);}
+
+.panel-body{padding:20px 22px 30px;}
+.field-block{margin-bottom:19px;}
+.field-block:last-child{margin-bottom:0;}
+.field-label{
+  margin:0 0 5px;
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:.07em;
+  text-transform:uppercase;
+  color:var(--ink-soft);
+}
+.field-value{
+  margin:0;
+  font-size:14px;
+  line-height:1.6;
+  color:var(--ink);
+  white-space:pre-line;
+}
+.field-value.muted{color:var(--ink-soft); font-style:italic;}
+.field-value a{
+  color:var(--ink);
+  text-decoration:none;
+  border-bottom:2px solid var(--sky);
+  word-break:break-word;
+}
+.field-value a:hover{border-bottom-color:var(--coral);}
+.field-value a:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
+.panel-divider{height:1px; background:var(--line); margin:22px 0;}
+.panel-actions{display:flex; flex-wrap:wrap; gap:9px; margin-top:22px;}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+@media (max-width:900px){
+  .topbar{padding:11px 16px;}
+  .filterbar{padding:9px 16px;}
+  .brand p{display:none;}
+}
+@media (max-width:560px){
+  .brand h1{font-size:16px;}
+  .filterbar{padding:8px 14px;}
+  .sponsor{padding:6px 12px;}
+  .sponsor span{display:none;}
+  .sponsor img{height:17px;}
+  .field select{max-width:9.5rem;}
+  .legend{left:10px; bottom:30px; width:calc(100% - 20px); max-width:262px;}
+  .panel{width:100%;}
+  .panel-head{padding:18px 58px 15px 18px;}
+  .panel-body{padding:17px 18px 26px;}
+}
+/* The scale bar and the legend share the bottom-left corner; drop the
+   scale bar rather than let them collide on the narrowest screens. */
+@media (max-width:420px){
+  .maplibregl-ctrl-bottom-left{display:none;}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.01ms !important;
+    animation-iteration-count:1 !important;
+    transition-duration:.01ms !important;
   }
+}
 </style>
 </head>
 <body>
 
-<div id="map"></div>
-<div class="loading" id="loading">Loading pharmacies…</div>
+<div class="app">
+  <div class="accentbar" aria-hidden="true"></div>
 
-<div class="brandbar">
-  <h1>NAPSA Rural Placement Map</h1>
-  <p>Click a pin to see what a pharmacy offers before you choose your placement.</p>
-</div>
+  <header class="topbar">
+    <div class="brand">
+      <h1>NAPSA Rural Placement Map</h1>
+      <p>Pharmacies offering intern placements across rural and remote Australia. Select a pin to see what each one offers.</p>
+    </div>
 
-<div class="legend">
-  <div class="legend-title">Remoteness (MMM)</div>
-  <div class="legend-row"><span class="legend-dot" style="background:var(--mmm1)"></span> MMM 1–2 · Metro/regional</div>
-  <div class="legend-row"><span class="legend-dot" style="background:var(--mmm2)"></span> MMM 3 · Large rural town</div>
-  <div class="legend-row"><span class="legend-dot" style="background:var(--mmm3)"></span> MMM 4–5 · Medium/small rural</div>
-  <div class="legend-row"><span class="legend-dot" style="background:var(--mmm4)"></span> MMM 6 · Remote</div>
-  <div class="legend-row"><span class="legend-dot" style="background:var(--mmm5)"></span> MMM 7 · Very remote</div>
-</div>
+    <a class="sponsor" href="https://locumco.com.au" target="_blank" rel="noopener noreferrer">
+      <span>Proudly supported by</span>
+      <img src="locumco.png" alt="LocumCo — pharmacy recruitment" width="490" height="90">
+    </a>
+  </header>
 
-<div class="panel" id="panel">
-  <button class="panel-close" id="panelClose" aria-label="Close">&times;</button>
-  <div class="panel-inner" id="panelInner"></div>
+  <div class="filterbar">
+    <label class="switch">
+      <input type="checkbox" id="internOnly" checked>
+      <span class="track" aria-hidden="true"></span>
+      <span>Taking interns only</span>
+    </label>
+
+    <span class="field">
+      <select id="stateFilter" aria-label="Filter by state or territory">
+        <option value="">All states &amp; territories</option>
+      </select>
+    </span>
+
+    <span class="field">
+      <select id="mmmFilter" aria-label="Filter by remoteness">
+        <option value="">All remoteness levels</option>
+      </select>
+    </span>
+
+    <button type="button" class="reset" id="resetFilters" hidden>Reset</button>
+    <p class="count" id="count" aria-live="polite"></p>
+  </div>
+
+  <div class="stage">
+    <div id="map"></div>
+
+    <details class="legend" id="legend" open>
+      <summary>Remoteness (MMM)</summary>
+      <div class="legend-body">
+        <div class="ramp" role="img" aria-label="Remoteness scale running from MMM 1 to 2, metro and regional, through to MMM 7, very remote.">
+          <span style="background:var(--mmm-1)"></span>
+          <span style="background:var(--mmm-2)"></span>
+          <span style="background:var(--mmm-3)"></span>
+          <span style="background:var(--mmm-4)"></span>
+          <span style="background:var(--mmm-5)"></span>
+        </div>
+        <div class="ramp-scale" aria-hidden="true">
+          <span>1&ndash;2</span><span>3</span><span>4&ndash;5</span><span>6</span><span>7</span>
+        </div>
+        <div class="ramp-ends" aria-hidden="true">
+          <span>Regional</span><span>Very remote</span>
+        </div>
+
+        <div class="legend-sep"></div>
+
+        <div class="legend-key">
+          <div>
+            <svg width="15" height="19" viewBox="0 0 28 36" aria-hidden="true"><path d="M14 34.8C14 34.8 25 21.5 25 14A11 11 0 1 0 3 14C3 21.5 14 34.8 14 34.8Z" fill="#2b6ecd" stroke="#fff" stroke-width="2"/><circle cx="14" cy="14" r="4.2" fill="#fff" opacity=".92"/></svg>
+            Taking interns
+          </div>
+          <div>
+            <svg width="15" height="19" viewBox="0 0 28 36" aria-hidden="true"><path d="M14 34.8C14 34.8 25 21.5 25 14A11 11 0 1 0 3 14C3 21.5 14 34.8 14 34.8Z" fill="#fff" stroke="#2b6ecd" stroke-width="2.6"/><circle cx="14" cy="14" r="3.6" fill="#2b6ecd" opacity=".5"/></svg>
+            Not currently taking interns
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <div class="overlay" id="overlay">
+      <div class="overlay-card" id="overlayCard">
+        <div class="spinner" id="spinner"></div>
+        <h2 id="overlayTitle">Loading pharmacies</h2>
+        <p id="overlayText">Fetching the latest placement listings.</p>
+      </div>
+    </div>
+
+    <aside class="panel" id="panel" aria-label="Pharmacy details">
+      <button type="button" class="panel-close" id="panelClose" aria-label="Close details">
+        <svg width="15" height="15" viewBox="0 0 15 15" aria-hidden="true"><path d="M1 1l13 13M14 1L1 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+      <div id="panelContent"></div>
+    </aside>
+  </div>
 </div>
 
 <script>
-const DATA_URL = "https://locumco.awesomate.io/webhook/napsa-pharmacies";
+(function(){
+  "use strict";
 
-function mmmColor(mmm){
-  const n = parseInt(mmm, 10);
-  if (n <= 2) return getComputedStyle(document.documentElement).getPropertyValue('--mmm1').trim();
-  if (n === 3) return getComputedStyle(document.documentElement).getPropertyValue('--mmm2').trim();
-  if (n === 4 || n === 5) return getComputedStyle(document.documentElement).getPropertyValue('--mmm3').trim();
-  if (n === 6) return getComputedStyle(document.documentElement).getPropertyValue('--mmm4').trim();
-  return getComputedStyle(document.documentElement).getPropertyValue('--mmm5').trim();
-}
+  var DATA_URL = "https://locumco.awesomate.io/webhook/napsa-pharmacies";
 
-function mmmLabel(mmm){
-  const n = parseInt(mmm, 10);
-  if (n <= 2) return "Metro / Regional centre";
-  if (n === 3) return "Large rural town";
-  if (n === 4) return "Medium rural town";
-  if (n === 5) return "Small rural town";
-  if (n === 6) return "Remote community";
-  return "Very remote community";
-}
+  // Resolve the ramp once, not once per marker.
+  var cssRoot = getComputedStyle(document.documentElement);
+  var RAMP = ["--mmm-1","--mmm-2","--mmm-3","--mmm-4","--mmm-5"].map(function(v){
+    return cssRoot.getPropertyValue(v).trim();
+  });
 
-function field(label, value){
-  if (!value) return "";
-  return `<div class="field"><div class="field-label">${label}</div><div class="field-value">${escapeHtml(value)}</div></div>`;
-}
+  var STATES = ["NSW","VIC","QLD","SA","WA","TAS","NT","ACT"];
+  var STATE_NAMES = {
+    NSW:"New South Wales", VIC:"Victoria", QLD:"Queensland",
+    SA:"South Australia", WA:"Western Australia", TAS:"Tasmania",
+    NT:"Northern Territory", ACT:"Australian Capital Territory"
+  };
 
-function escapeHtml(str){
-  return String(str)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+  var BUCKET_LABELS = [
+    "MMM 1–2 · Metro / regional centre",
+    "MMM 3 · Large rural town",
+    "MMM 4–5 · Medium / small rural town",
+    "MMM 6 · Remote community",
+    "MMM 7 · Very remote community"
+  ];
 
-function openPanel(p){
-  const inner = document.getElementById('panelInner');
-  const color = mmmColor(p.mmm);
-  inner.innerHTML = `
-    <h2>${escapeHtml(p.name)}</h2>
-    <div class="address">${escapeHtml(p.address)}</div>
-    <div class="mmm-badge"><span class="dot" style="background:${color}"></span>MMM ${escapeHtml(p.mmm || '—')} · ${mmmLabel(p.mmm)}</div>
-    ${field("Services & experience offered", p.services)}
-    ${field("Intern pharmacist position available", p.internPosition)}
-    ${field("Accommodation", p.accommodation)}
-    <div class="divider"></div>
-    ${field("Contact", p.contactPerson)}
-    ${field("Phone", p.phone)}
-    ${field("Email", p.email ? `<a href="mailto:${escapeHtml(p.email)}">${escapeHtml(p.email)}</a>` : "")}
-  `;
-  document.getElementById('panel').classList.add('open');
-}
+  var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-document.getElementById('panelClose').addEventListener('click', () => {
-  document.getElementById('panel').classList.remove('open');
-});
+  /* --- data helpers ----------------------------------------------------- */
 
-const map = new maplibregl.Map({
-  container: 'map',
-  style: 'https://tiles.openfreemap.org/styles/liberty',
-  center: [134.0, -25.5],
-  zoom: 3.6,
-  attributionControl: true
-});
-map.addControl(new maplibregl.NavigationControl(), 'top-right');
+  // Index into the five-step ordinal ramp.
+  function mmmBucket(mmm){
+    var n = parseInt(mmm, 10);
+    if (!isFinite(n)) return 2;              // unknown -> mid step
+    if (n <= 2) return 0;
+    if (n === 3) return 1;
+    if (n === 4 || n === 5) return 2;
+    if (n === 6) return 3;
+    return 4;
+  }
+  function mmmColor(mmm){ return RAMP[mmmBucket(mmm)]; }
+  function mmmLabel(mmm){
+    var n = parseInt(mmm, 10);
+    if (!isFinite(n)) return "Remoteness not recorded";
+    if (n <= 2) return "Metro / regional centre";
+    if (n === 3) return "Large rural town";
+    if (n === 4) return "Medium rural town";
+    if (n === 5) return "Small rural town";
+    if (n === 6) return "Remote community";
+    return "Very remote community";
+  }
 
-map.on('load', () => {
-  fetch(DATA_URL)
-    .then(res => res.json())
-    .then(data => {
-      document.getElementById('loading').style.display = 'none';
-      const pharmacies = (data.pharmacies || []).filter(p => p.lat && p.lng);
+  function stateOf(address){
+    var m = /\b(NSW|VIC|QLD|SA|WA|TAS|NT|ACT)\b/.exec(address || "");
+    return m ? m[1] : "";
+  }
 
-      const bounds = new maplibregl.LngLatBounds();
+  // "Yes" / "No" from the source sheet; anything else counts as not taking.
+  function takesInterns(p){
+    return /^\s*y/i.test(String(p.internPosition == null ? "" : p.internPosition));
+  }
 
-      pharmacies.forEach(p => {
-        const el = document.createElement('div');
-        el.style.width = '22px';
-        el.style.height = '22px';
-        el.style.borderRadius = '50% 50% 50% 0';
-        el.style.transform = 'rotate(-45deg)';
-        el.style.background = mmmColor(p.mmm);
-        el.style.border = '2px solid #fffefb';
-        el.style.boxShadow = '0 2px 6px rgba(35,50,43,0.35)';
-        el.style.cursor = 'pointer';
+  function esc(str){
+    return String(str == null ? "" : str)
+      .replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")
+      .replace(/"/g,"&quot;").replace(/'/g,"&#39;");
+  }
 
-        const marker = new maplibregl.Marker({ element: el, anchor: 'bottom' })
-          .setLngLat([p.lng, p.lat])
-          .addTo(map);
+  /* --- markers ---------------------------------------------------------- */
 
-        el.addEventListener('click', () => openPanel(p));
-        bounds.extend([p.lng, p.lat]);
-      });
+  // Tip sits at (14, 34.8) so the pin points at its coordinate.
+  var PIN_PATH = "M14 34.8C14 34.8 25 21.5 25 14A11 11 0 1 0 3 14C3 21.5 14 34.8 14 34.8Z";
 
-      if (pharmacies.length > 0) {
-        map.fitBounds(bounds, { padding: 60, maxZoom: 6, duration: 0 });
-      }
-    })
-    .catch(err => {
-      document.getElementById('loading').textContent = 'Could not load pharmacy data. Please refresh.';
-      console.error(err);
+  function pinSVG(color, solid){
+    if (solid){
+      return '<svg width="28" height="36" viewBox="0 0 28 36" aria-hidden="true" focusable="false">'
+        + '<path d="' + PIN_PATH + '" fill="' + color + '" stroke="#fff" stroke-width="2"/>'
+        + '<circle cx="14" cy="14" r="4.2" fill="#fff" opacity=".92"/></svg>';
+    }
+    return '<svg width="28" height="36" viewBox="0 0 28 36" aria-hidden="true" focusable="false">'
+      + '<path d="' + PIN_PATH + '" fill="#fff" stroke="' + color + '" stroke-width="2.6"/>'
+      + '<circle cx="14" cy="14" r="3.6" fill="' + color + '" opacity=".5"/></svg>';
+  }
+
+  /* Several listings share identical coordinates — four Far North Queensland
+     pharmacies sit on just two points. Fan co-located pins out in screen
+     space so none is hidden behind another. */
+  function fanOffsets(n){
+    if (n === 1) return [[0,0]];
+    if (n === 2) return [[-13,0],[13,0]];
+    var out = [], r = n <= 4 ? 15 : 19;
+    for (var i = 0; i < n; i++){
+      var a = (Math.PI * 2 * i / n) - Math.PI / 2;
+      out.push([Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r * 0.72)]);
+    }
+    return out;
+  }
+
+  /* --- elements --------------------------------------------------------- */
+
+  var el = {
+    panel: document.getElementById("panel"),
+    panelContent: document.getElementById("panelContent"),
+    panelClose: document.getElementById("panelClose"),
+    overlay: document.getElementById("overlay"),
+    overlayCard: document.getElementById("overlayCard"),
+    spinner: document.getElementById("spinner"),
+    overlayTitle: document.getElementById("overlayTitle"),
+    overlayText: document.getElementById("overlayText"),
+    internOnly: document.getElementById("internOnly"),
+    stateFilter: document.getElementById("stateFilter"),
+    mmmFilter: document.getElementById("mmmFilter"),
+    resetFilters: document.getElementById("resetFilters"),
+    count: document.getElementById("count"),
+    legend: document.getElementById("legend")
+  };
+
+  var records = [];
+  var activeRec = null;
+  var lastFocused = null;
+
+  var PANEL_W = 400;   // keep in step with .panel width
+  var LEGEND_W = 300;  // legend width plus its inset
+
+  // Scale a pair of opposing paddings down so together they can never eat
+  // more of the container than `limit`.
+  function clampPair(a, b, limit){
+    var sum = a + b;
+    if (sum <= limit) return [a, b];
+    var k = limit / sum;
+    return [Math.floor(a * k), Math.floor(b * k)];
+  }
+
+  /* Single source of truth for the map's usable area: reserve whatever the
+     legend and the detail panel are currently covering, so no pin can end up
+     hidden underneath either of them.
+
+     Measured off the map container rather than the window — when the map is
+     embedded in an iframe the two can disagree. Padding wider than the
+     container makes fitBounds pick a nonsense zoom, so both axes are clamped
+     to leave at least 30% of the container free. */
+  function viewPadding(){
+    var box = map ? map.getContainer() : null;
+    var w = box ? box.clientWidth : window.innerWidth;
+    var h = box ? box.clientHeight : window.innerHeight;
+    var wide = w > 560;
+
+    /* The legend is pinned bottom-left. On a wide map it is a narrow corner
+       card, so reserve the space on the left; on a phone it spans most of the
+       width, so reserve its measured height along the bottom instead. */
+    var legendTall = el.legend.offsetHeight || 0;
+    var left  = (wide && el.legend.open) ? LEGEND_W : 50;
+    var bottom = (!wide && el.legend.open) ? legendTall + 46 : 80;
+
+    var lr = clampPair(
+      left,
+      (el.panel.classList.contains("open") && wide) ? PANEL_W + 30 : 60,
+      w * 0.7
+    );
+    var tb = clampPair(60, bottom, h * 0.7);
+
+    return { left: lr[0], right: lr[1], top: tb[0], bottom: tb[1] };
+  }
+
+  function setCameraPadding(){
+    if (!map) return;
+    map.easeTo({ padding: viewPadding(), duration: reduceMotion ? 0 : 380 });
+  }
+
+  /* --- overlay ---------------------------------------------------------- */
+
+  function showOverlay(title, text, opts){
+    opts = opts || {};
+    el.spinner.hidden = !opts.spinner;
+    el.overlayTitle.textContent = title;
+    el.overlayText.textContent = text;
+
+    var old = document.getElementById("overlayAction");
+    if (old) old.remove();
+    if (opts.action){
+      var b = document.createElement("button");
+      b.type = "button";
+      b.id = "overlayAction";
+      b.className = "btn btn-secondary";
+      b.textContent = opts.action;
+      b.addEventListener("click", opts.onAction);
+      el.overlayCard.appendChild(b);
+    }
+    el.overlay.hidden = false;
+  }
+  function hideOverlay(){ el.overlay.hidden = true; }
+
+  /* --- detail panel ----------------------------------------------------- */
+
+  // `opts.html` marks a value as pre-built markup; everything else is escaped.
+  function block(label, value, opts){
+    opts = opts || {};
+    if (!value && !opts.placeholder) return "";
+    var cls = value ? "field-value" : "field-value muted";
+    var body = value ? (opts.html ? value : esc(value)) : esc(opts.placeholder);
+    return '<div class="field-block"><p class="field-label">' + esc(label) + '</p>'
+      + '<p class="' + cls + '">' + body + '</p></div>';
+  }
+
+  var ICON_OK = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+  var ICON_NO = '<svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M1 1l9 9M10 1L1 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+
+  function setActive(rec){
+    if (activeRec) activeRec.button.classList.remove("is-active");
+    activeRec = rec;
+    if (rec) rec.button.classList.add("is-active");
+  }
+
+  function openPanel(rec, trigger){
+    var p = rec.data;
+    var color = mmmColor(p.mmm);
+
+    var actions = "";
+    if (p.email){
+      actions += '<a class="btn btn-primary" href="mailto:' + esc(p.email)
+        + '?subject=' + esc(encodeURIComponent("NAPSA rural placement enquiry"))
+        + '">Email this pharmacy</a>';
+    }
+    if (p.address){
+      actions += '<a class="btn btn-secondary" href="https://www.google.com/maps/search/?api=1&amp;query='
+        + esc(encodeURIComponent((p.name || "") + " " + p.address))
+        + '" target="_blank" rel="noopener noreferrer">Directions</a>';
+    }
+
+    el.panelContent.innerHTML =
+      '<div class="panel-head">'
+        + '<h2 id="panelTitle" tabindex="-1">' + esc(p.name) + '</h2>'
+        + (p.address ? '<p class="address">' + esc(p.address) + '</p>' : "")
+        + '<div class="badges">'
+          + '<span class="badge"><span class="dot" style="background:' + esc(color) + '"></span>MMM '
+            + esc(p.mmm || "—") + ' · ' + esc(mmmLabel(p.mmm)) + '</span>'
+          + (rec.intern
+              ? '<span class="badge badge-ok">' + ICON_OK + 'Taking interns</span>'
+              : '<span class="badge badge-closed">' + ICON_NO + 'Not currently taking interns</span>')
+        + '</div>'
+      + '</div>'
+      + '<div class="panel-body">'
+        + block("Services & experience offered", p.services)
+        + block("Accommodation", p.accommodation, { placeholder:"Not listed — ask the contact below." })
+        + '<div class="panel-divider"></div>'
+        + block("Contact", p.contactPerson)
+        + block("Phone", p.phone
+            ? '<a href="tel:' + esc(String(p.phone).replace(/[^\d+]/g,"")) + '">' + esc(p.phone) + '</a>'
+            : "", { html:true })
+        + block("Email", p.email
+            ? '<a href="mailto:' + esc(p.email) + '">' + esc(p.email) + '</a>'
+            : "", { html:true })
+        + (actions ? '<div class="panel-actions">' + actions + '</div>' : "")
+      + '</div>';
+
+    setActive(rec);
+    lastFocused = trigger || null;
+    el.panel.classList.add("open");
+    el.panel.removeAttribute("inert");
+    // Slide the camera so the panel can't sit on top of the pin just clicked.
+    // Full-width on phones, so there is nothing to slide.
+    setCameraPadding();
+
+    // The panel is visibility:hidden until the .open class takes effect, and a
+    // hidden element cannot take focus — so move focus on the next frame.
+    requestAnimationFrame(function(){
+      var h = document.getElementById("panelTitle");
+      if (h && el.panel.classList.contains("open")) h.focus({ preventScroll:true });
     });
-});
+  }
+
+  function closePanel(){
+    if (!el.panel.classList.contains("open")) return;
+    el.panel.classList.remove("open");
+    el.panel.setAttribute("inert", "");
+    setActive(null);
+    setCameraPadding();
+    if (lastFocused && document.contains(lastFocused) && !lastFocused.closest("[hidden]")){
+      lastFocused.focus();
+    }
+    lastFocused = null;
+  }
+
+  el.panelClose.addEventListener("click", closePanel);
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape") closePanel();
+  });
+  el.panel.setAttribute("inert", "");
+
+  /* --- map -------------------------------------------------------------- */
+
+  var map;
+  try {
+    map = new maplibregl.Map({
+      container: "map",
+      // Positron is a muted basemap, so the markers carry the colour.
+      style: "https://tiles.openfreemap.org/styles/positron",
+      center: [134.0, -26.0],
+      zoom: 3.4,
+      attributionControl: { compact: true }
+    });
+  } catch (err){
+    // MapLibre throws here when WebGL is unavailable.
+    console.error(err);
+    showOverlay("This map needs WebGL",
+      "Your browser or device can’t display the map. Try updating your browser, or open this page on another device.");
+    return;
+  }
+  map.addControl(new maplibregl.NavigationControl({ showCompass:false }), "top-right");
+  map.addControl(new maplibregl.ScaleControl({ maxWidth:90, unit:"metric" }), "bottom-left");
+  map.on("error", function(e){ console.warn("map:", e && e.error ? e.error.message : e); });
+
+  /* --- filtering -------------------------------------------------------- */
+
+  function visibleRecords(){
+    var onlyIntern = el.internOnly.checked;
+    var st = el.stateFilter.value;
+    var mm = el.mmmFilter.value;
+    return records.filter(function(r){
+      if (onlyIntern && !r.intern) return false;
+      if (st && r.state !== st) return false;
+      if (mm !== "" && String(r.bucket) !== mm) return false;
+      return true;
+    });
+  }
+
+  function isDirty(){
+    return !el.internOnly.checked || el.stateFilter.value !== "" || el.mmmFilter.value !== "";
+  }
+
+  function fitTo(list, animate){
+    if (!list.length) return;
+    var b = new maplibregl.LngLatBounds();
+    list.forEach(function(r){ b.extend([r.data.lng, r.data.lat]); });
+    map.fitBounds(b, {
+      padding: viewPadding(),
+      maxZoom: 7,
+      duration: (animate && !reduceMotion) ? 650 : 0
+    });
+  }
+
+  function applyFilters(animate){
+    var list = visibleRecords();
+    var shown = Object.create(null);
+    list.forEach(function(r){ shown[r.id] = true; });
+
+    records.forEach(function(r){ r.wrap.hidden = !shown[r.id]; });
+
+    el.count.innerHTML = "Showing <b>" + list.length + "</b> of " + records.length;
+    el.resetFilters.hidden = !isDirty();
+
+    // A filtered-out pin must not leave its panel open behind it.
+    if (activeRec && !shown[activeRec.id]) closePanel();
+
+    if (!list.length){
+      showOverlay("No pharmacies match", "Try widening the remoteness or state filter.", {
+        action: "Reset filters",
+        onAction: resetAll
+      });
+    } else {
+      hideOverlay();
+      fitTo(list, animate);
+    }
+  }
+
+  function resetAll(){
+    el.internOnly.checked = true;
+    el.stateFilter.value = "";
+    el.mmmFilter.value = "";
+    applyFilters(true);
+  }
+
+  el.internOnly.addEventListener("change", function(){ applyFilters(true); });
+  el.stateFilter.addEventListener("change", function(){ applyFilters(true); });
+  el.mmmFilter.addEventListener("change", function(){ applyFilters(true); });
+  el.resetFilters.addEventListener("click", resetAll);
+
+  /* --- build ------------------------------------------------------------ */
+
+  function buildFilters(){
+    // Only offer options the data actually contains, with live counts.
+    var stateCounts = {}, bucketCounts = {};
+    records.forEach(function(r){
+      if (r.state) stateCounts[r.state] = (stateCounts[r.state] || 0) + 1;
+      bucketCounts[r.bucket] = (bucketCounts[r.bucket] || 0) + 1;
+    });
+
+    var html = '<option value="">All states &amp; territories</option>';
+    STATES.forEach(function(s){
+      if (stateCounts[s]){
+        html += '<option value="' + s + '">' + esc(STATE_NAMES[s]) + ' (' + stateCounts[s] + ')</option>';
+      }
+    });
+    el.stateFilter.innerHTML = html;
+
+    html = '<option value="">All remoteness levels</option>';
+    BUCKET_LABELS.forEach(function(label, i){
+      if (bucketCounts[i]){
+        html += '<option value="' + i + '">' + esc(label) + ' (' + bucketCounts[i] + ')</option>';
+      }
+    });
+    el.mmmFilter.innerHTML = html;
+  }
+
+  function build(pharmacies){
+    // Group by rounded coordinate so co-located pins can be fanned out.
+    var groups = {}, order = [];
+    pharmacies.forEach(function(p){
+      var key = p.lat.toFixed(4) + "," + p.lng.toFixed(4);
+      if (!groups[key]){ groups[key] = []; order.push(key); }
+      groups[key].push(p);
+    });
+
+    var id = 0;
+    order.forEach(function(key){
+      var group = groups[key];
+      var offsets = fanOffsets(group.length);
+
+      group.forEach(function(p, i){
+        var intern = takesInterns(p);
+
+        var wrap = document.createElement("div");
+        wrap.className = "pin-wrap";
+
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "pin";
+        button.innerHTML = pinSVG(mmmColor(p.mmm), intern);
+        button.setAttribute("aria-label",
+          (p.name || "Pharmacy") + ", " + (p.address || "") + ". " + mmmLabel(p.mmm) + ". "
+          + (intern ? "Taking interns." : "Not currently taking interns."));
+        wrap.appendChild(button);
+
+        var marker = new maplibregl.Marker({
+          element: wrap,
+          anchor: "bottom",
+          // +1.2px drops the anchor from the box edge onto the pin tip.
+          offset: [offsets[i][0], offsets[i][1] + 1.2]
+        }).setLngLat([p.lng, p.lat]).addTo(map);
+
+        var rec = {
+          id: id++, data: p, marker: marker, wrap: wrap, button: button,
+          state: stateOf(p.address), bucket: mmmBucket(p.mmm), intern: intern
+        };
+        button.addEventListener("click", function(){ openPanel(rec, button); });
+        records.push(rec);
+      });
+    });
+
+    buildFilters();
+    applyFilters(false);
+  }
+
+  /* --- load -------------------------------------------------------------
+     The fetch runs independently of the style load, so a slow basemap never
+     holds up the data (and a data error surfaces straight away). Markers are
+     only added once the map is actually ready. */
+
+  var mapReady = false;
+  var pendingData = null;
+
+  map.on("load", function(){
+    mapReady = true;
+    if (pendingData){
+      var d = pendingData;
+      pendingData = null;
+      build(d);
+    }
+  });
+
+  function load(){
+    showOverlay("Loading pharmacies", "Fetching the latest placement listings.", { spinner:true });
+    fetch(DATA_URL)
+      .then(function(res){
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.json();
+      })
+      .then(function(data){
+        var pharmacies = (data && data.pharmacies ? data.pharmacies : []).filter(function(p){
+          return p && isFinite(p.lat) && isFinite(p.lng);
+        });
+        if (!pharmacies.length){
+          showOverlay("No listings yet", "There are no pharmacies to show on the map right now.");
+          return;
+        }
+        if (mapReady) build(pharmacies);
+        else pendingData = pharmacies;
+      })
+      .catch(function(err){
+        console.error(err);
+        showOverlay("Couldn’t load the map data",
+          "Something went wrong fetching the pharmacy listings.",
+          { action:"Try again", onAction:load });
+      });
+  }
+
+  load();
+
+  /* Collapse the legend where it would otherwise cover a meaningful share of
+     the map, and keep the reserved space in step when it is toggled. */
+  var stage = document.querySelector(".stage");
+  if (stage.clientHeight < 560 || stage.clientWidth < 560) el.legend.open = false;
+  // Guarded: setting `open` above queues a toggle event of its own, and there
+  // is nothing to re-frame until the markers exist.
+  el.legend.addEventListener("toggle", function(){
+    if (records.length) setCameraPadding();
+  });
+})();
 </script>
 
 </body>
