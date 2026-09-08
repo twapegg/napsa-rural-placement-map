@@ -61,6 +61,9 @@
 
 *,*::before,*::after{box-sizing:border-box;}
 
+/* Long/short label pair — the short one only appears on narrow screens. */
+.lbl-short{display:none;}
+
 html,body{height:100%;}
 body{
   margin:0;
@@ -236,31 +239,41 @@ body{
 .reset:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
 .reset[hidden]{display:none;}
 
+/* Also the keyboard route to pharmacies currently inside a cluster. */
+.listbtn{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  font:inherit;
+  font-size:13px;
+  font-weight:600;
+  color:var(--ink);
+  background:var(--surface);
+  border:1px solid var(--line-strong);
+  border-radius:var(--r-pill);
+  padding:7px 15px;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:background .18s ease;
+}
+.listbtn:hover{background:var(--tint);}
+.listbtn:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
+.listbtn[hidden]{display:none;}
+
 /* --- sponsor ----------------------------------------------------------- */
 .sponsor{
   display:inline-flex;
   align-items:center;
-  gap:11px;
   flex:0 0 auto;
-  padding:7px 15px;
-  border:1px solid var(--line);
-  border-radius:var(--r-pill);
-  background:var(--tint);
+  padding:4px;
+  border-radius:6px;
   text-decoration:none;
-  transition:border-color .18s ease, background .18s ease;
+  opacity:.9;
+  transition:opacity .18s ease;
 }
-.sponsor:hover{background:var(--surface); border-color:var(--line-strong);}
+.sponsor:hover{opacity:1;}
 .sponsor:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
-.sponsor span{
-  font-size:10px;
-  font-weight:700;
-  letter-spacing:.07em;
-  text-transform:uppercase;
-  line-height:1.2;
-  color:var(--ink-soft);
-  white-space:nowrap;
-}
-.sponsor img{display:block; height:19px; width:auto;}
+.sponsor img{display:block; height:24px; width:auto;}
 
 /* ==========================================================================
    Map stage
@@ -295,7 +308,6 @@ body{
    Markers
    ========================================================================== */
 .pin-wrap{will-change:transform;}
-.pin-wrap[hidden]{display:none;}
 .pin{
   display:block;
   padding:0;
@@ -455,6 +467,8 @@ body{
 .btn-primary:hover{background:#fff; color:var(--navy);}
 .btn-secondary{background:var(--sky); border-color:var(--sky); color:var(--navy);}
 .btn-secondary:hover{background:#fff;}
+.btn-ghost{background:#fff; border-color:var(--line-strong); color:var(--ink);}
+.btn-ghost:hover{background:var(--tint);}
 .btn:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
 
 /* ==========================================================================
@@ -536,6 +550,86 @@ body{
 .badge-ok{background:var(--ok-tint); border-color:transparent; color:var(--ok);}
 .badge-closed{background:var(--closed-tint); border-color:transparent; color:var(--closed);}
 
+.panel-back{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  margin:0 0 10px;
+  padding:5px 12px 5px 9px;
+  font:inherit;
+  font-size:12px;
+  font-weight:700;
+  color:var(--ink);
+  background:var(--surface);
+  border:1px solid var(--line);
+  border-radius:var(--r-pill);
+  cursor:pointer;
+  max-width:100%;
+  transition:background .18s ease;
+}
+.panel-back:hover{background:var(--tint);}
+.panel-back:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
+
+/* --- list view ---------------------------------------------------------- */
+.plist{margin:0; padding:0; list-style:none;}
+.plist-row{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  width:100%;
+  padding:14px 20px 14px 18px;
+  font:inherit;
+  text-align:left;
+  background:none;
+  border:none;
+  border-bottom:1px solid var(--line);
+  cursor:pointer;
+  transition:background .16s ease;
+}
+.plist-row:hover{background:var(--tint);}
+.plist-row:focus-visible{outline:3px solid var(--coral); outline-offset:-3px;}
+.plist-pin{flex:none; line-height:0; margin-top:1px;}
+.plist-pin svg{width:19px; height:24px;}
+.plist-text{min-width:0; flex:1 1 auto;}
+.plist-name{
+  display:block;
+  font-size:14.5px;
+  font-weight:700;
+  line-height:1.3;
+  color:var(--ink);
+}
+.plist-meta{
+  display:block;
+  margin-top:2px;
+  font-size:12.5px;
+  line-height:1.4;
+  color:var(--ink-soft);
+}
+.plist-tags{display:flex; flex-wrap:wrap; gap:5px; margin-top:7px;}
+.tag{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  padding:3px 8px;
+  font-size:11px;
+  font-weight:700;
+  line-height:1.3;
+  border-radius:var(--r-pill);
+  background:var(--tint);
+  color:var(--ink-soft);
+}
+.tag-ok{background:var(--ok-tint); color:var(--ok);}
+.tag-closed{background:var(--closed-tint); color:var(--closed);}
+.plist-go{
+  flex:none;
+  width:7px; height:7px;
+  margin-top:8px;
+  border-right:2px solid var(--line-strong);
+  border-bottom:2px solid var(--line-strong);
+  transform:rotate(-45deg);
+}
+.plist-row:hover .plist-go{border-color:var(--ink-soft);}
+
 .panel-body{padding:20px 22px 30px;}
 .field-block{margin-bottom:19px;}
 .field-block:last-child{margin-bottom:0;}
@@ -576,10 +670,11 @@ body{
 }
 @media (max-width:560px){
   .brand h1{font-size:16px;}
-  .filterbar{padding:8px 14px;}
-  .sponsor{padding:6px 12px;}
-  .sponsor span{display:none;}
-  .sponsor img{height:17px;}
+  .topbar{gap:8px 12px; padding:10px 14px;}
+  .filterbar{padding:8px 14px; gap:8px;}
+  .lbl-long{display:none;}
+  .lbl-short{display:inline;}
+  .sponsor img{height:18px;}
   .field select{max-width:9.5rem;}
   .legend{left:10px; bottom:30px; width:calc(100% - 20px); max-width:262px;}
   .panel{width:100%;}
@@ -612,9 +707,9 @@ body{
       <p>Pharmacies offering intern placements across rural and remote Australia. Select a pin to see what each one offers.</p>
     </div>
 
-    <a class="sponsor" href="https://locumco.com.au" target="_blank" rel="noopener noreferrer">
-      <span>Proudly supported by</span>
-      <img src="locumco.png" alt="LocumCo — pharmacy recruitment" width="490" height="90">
+    <a class="sponsor" href="https://locumco.com.au" target="_blank" rel="noopener noreferrer"
+       title="LocumCo — pharmacy recruitment">
+      <img src="locumco-logo.png" alt="LocumCo" width="480" height="89">
     </a>
   </header>
 
@@ -622,7 +717,8 @@ body{
     <label class="switch">
       <input type="checkbox" id="internOnly" checked>
       <span class="track" aria-hidden="true"></span>
-      <span>Taking interns only</span>
+      <span class="lbl-long">Taking interns only</span>
+      <span class="lbl-short">Interns only</span>
     </label>
 
     <span class="field">
@@ -639,6 +735,12 @@ body{
 
     <button type="button" class="reset" id="resetFilters" hidden>Reset</button>
     <p class="count" id="count" aria-live="polite"></p>
+    <button type="button" class="listbtn" id="listBtn" hidden>
+      <svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true">
+        <path d="M1 2h11M1 6.5h11M1 11h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      List all
+    </button>
   </div>
 
   <div class="stage">
@@ -778,19 +880,19 @@ body{
       + '<circle cx="14" cy="14" r="3.6" fill="' + color + '" opacity=".5"/></svg>';
   }
 
-  /* Several listings share identical coordinates — four Far North Queensland
-     pharmacies sit on just two points. Fan co-located pins out in screen
-     space so none is hidden behind another. */
-  function fanOffsets(n){
-    if (n === 1) return [[0,0]];
-    if (n === 2) return [[-13,0],[13,0]];
-    var out = [], r = n <= 4 ? 15 : 19;
-    for (var i = 0; i < n; i++){
-      var a = (Math.PI * 2 * i / n) - Math.PI / 2;
-      out.push([Math.round(Math.cos(a) * r), Math.round(Math.sin(a) * r * 0.72)]);
-    }
-    return out;
-  }
+  /* --- clustering --------------------------------------------------------
+     Pharmacies that overlap on screen are grouped into a count bubble rather
+     than nudged apart: an offset pin lies about where a pharmacy is (at low
+     zoom a few pixels is tens of kilometres, which puts coastal pins out to
+     sea), and it stops working entirely once more than a handful pile up.
+
+     clusterRadius is set to roughly the width of a pin, so grouping kicks in
+     exactly when pins would start covering each other, and clusterMaxZoom is
+     the map's own max zoom, so listings that share a coordinate stay a
+     clickable cluster instead of silently stacking at the top zoom. */
+  var SRC = "pharmacies";
+  var MAX_ZOOM = 16;
+  var CLUSTER_RADIUS = 34;
 
   /* --- elements --------------------------------------------------------- */
 
@@ -807,11 +909,13 @@ body{
     stateFilter: document.getElementById("stateFilter"),
     mmmFilter: document.getElementById("mmmFilter"),
     resetFilters: document.getElementById("resetFilters"),
+    listBtn: document.getElementById("listBtn"),
     count: document.getElementById("count"),
     legend: document.getElementById("legend")
   };
 
-  var records = [];
+  var records = [];        // every pharmacy, indexed by id
+  var visibleList = [];    // the records passing the current filters
   var activeRec = null;
   var lastFocused = null;
 
@@ -901,13 +1005,81 @@ body{
   var ICON_OK = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M1.5 6.5l3 3 6-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
   var ICON_NO = '<svg width="11" height="11" viewBox="0 0 11 11" aria-hidden="true"><path d="M1 1l9 9M10 1L1 10" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
 
+  // A record's marker exists only while it is unclustered and in view, so the
+  // button may be absent.
   function setActive(rec){
-    if (activeRec) activeRec.button.classList.remove("is-active");
+    if (activeRec && activeRec.button) activeRec.button.classList.remove("is-active");
     activeRec = rec;
-    if (rec) rec.button.classList.add("is-active");
+    if (rec && rec.button) rec.button.classList.add("is-active");
   }
 
-  function openPanel(rec, trigger){
+  function showPanel(trigger){
+    el.panel.classList.add("open");
+    el.panel.removeAttribute("inert");
+    if (trigger !== undefined) lastFocused = trigger || null;
+    // Slide the camera so the panel can't sit on top of what was clicked.
+    // Full-width on phones, so there is nothing to slide.
+    setCameraPadding();
+    el.panel.scrollTop = 0;
+
+    // Focus moves on the next frame, once .open has actually taken effect.
+    requestAnimationFrame(function(){
+      var h = document.getElementById("panelTitle");
+      if (h && el.panel.classList.contains("open")) h.focus({ preventScroll:true });
+    });
+  }
+
+  /* --- list view -------------------------------------------------------
+     Used both for a cluster that cannot be pulled apart by zooming and for
+     the "List all" button, which is also the keyboard route to pharmacies
+     that are currently inside a cluster. */
+
+  var listState = null;   // { recs, title, note } so detail can offer "Back"
+
+  function pinSwatch(rec){
+    return '<span class="plist-pin">' + pinSVG(mmmColor(rec.data.mmm), rec.intern) + '</span>';
+  }
+
+  function openList(recs, title, note, trigger){
+    if (!recs || !recs.length) return;
+    listState = { recs: recs, title: title, note: note };
+
+    var rows = recs.map(function(rec, i){
+      var p = rec.data;
+      return '<li><button type="button" class="plist-row" data-i="' + i + '">'
+        + pinSwatch(rec)
+        + '<span class="plist-text">'
+          + '<span class="plist-name">' + esc(p.name) + '</span>'
+          + '<span class="plist-meta">' + esc(p.address || "") + '</span>'
+          + '<span class="plist-tags">'
+            + '<span class="tag">MMM ' + esc(p.mmm || "—") + '</span>'
+            + (rec.intern
+                ? '<span class="tag tag-ok">' + ICON_OK + 'Interns</span>'
+                : '<span class="tag tag-closed">' + ICON_NO + 'No interns</span>')
+          + '</span>'
+        + '</span>'
+        + '<span class="plist-go" aria-hidden="true"></span>'
+        + '</button></li>';
+    }).join("");
+
+    el.panelContent.innerHTML =
+      '<div class="panel-head">'
+        + '<h2 id="panelTitle" tabindex="-1">' + esc(title) + '</h2>'
+        + (note ? '<p class="address">' + esc(note) + '</p>' : "")
+      + '</div>'
+      + '<ul class="plist">' + rows + '</ul>';
+
+    el.panelContent.querySelectorAll(".plist-row").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        openDetail(listState.recs[+btn.dataset.i], btn, true);
+      });
+    });
+
+    setActive(null);
+    showPanel(trigger);
+  }
+
+  function openDetail(rec, trigger, fromList){
     var p = rec.data;
     var color = mmmColor(p.mmm);
 
@@ -922,9 +1094,21 @@ body{
         + esc(encodeURIComponent((p.name || "") + " " + p.address))
         + '" target="_blank" rel="noopener noreferrer">Directions</a>';
     }
+    // Reached from a list, so where it actually sits is not yet obvious.
+    if (fromList){
+      actions += '<button type="button" class="btn btn-ghost" id="showOnMap">Show on map</button>';
+    }
+
+    var back = (fromList && listState)
+      ? '<button type="button" class="panel-back" id="panelBack">'
+        + '<svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true">'
+        + '<path d="M7.5 1.5L2.5 6.5l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        + esc(listState.title) + '</button>'
+      : "";
 
     el.panelContent.innerHTML =
       '<div class="panel-head">'
+        + back
         + '<h2 id="panelTitle" tabindex="-1">' + esc(p.name) + '</h2>'
         + (p.address ? '<p class="address">' + esc(p.address) + '</p>' : "")
         + '<div class="badges">'
@@ -949,20 +1133,31 @@ body{
         + (actions ? '<div class="panel-actions">' + actions + '</div>' : "")
       + '</div>';
 
-    setActive(rec);
-    lastFocused = trigger || null;
-    el.panel.classList.add("open");
-    el.panel.removeAttribute("inert");
-    // Slide the camera so the panel can't sit on top of the pin just clicked.
-    // Full-width on phones, so there is nothing to slide.
-    setCameraPadding();
+    var backBtn = document.getElementById("panelBack");
+    if (backBtn){
+      backBtn.addEventListener("click", function(){
+        openList(listState.recs, listState.title, listState.note);
+      });
+    }
 
-    // The panel is visibility:hidden until the .open class takes effect, and a
-    // hidden element cannot take focus — so move focus on the next frame.
-    requestAnimationFrame(function(){
-      var h = document.getElementById("panelTitle");
-      if (h && el.panel.classList.contains("open")) h.focus({ preventScroll:true });
-    });
+    var showBtn = document.getElementById("showOnMap");
+    if (showBtn){
+      showBtn.addEventListener("click", function(){
+        // Zoom in far enough that this pharmacy leaves its cluster and its
+        // own pin appears, already highlighted by setActive below.
+        map.easeTo({
+          center: [p.lng, p.lat],
+          zoom: Math.max(map.getZoom(), 12),
+          padding: viewPadding(),
+          duration: reduceMotion ? 0 : 700
+        });
+      });
+    }
+
+    setActive(rec);
+    // Keep the list as the return target, so Escape from a drilled-in detail
+    // still hands focus back to whatever opened the list.
+    showPanel(fromList ? undefined : trigger);
   }
 
   function closePanel(){
@@ -993,6 +1188,7 @@ body{
       style: "https://tiles.openfreemap.org/styles/positron",
       center: [134.0, -26.0],
       zoom: 3.4,
+      maxZoom: MAX_ZOOM,
       attributionControl: { compact: true }
     });
   } catch (err){
@@ -1030,7 +1226,8 @@ body{
     list.forEach(function(r){ b.extend([r.data.lng, r.data.lat]); });
     map.fitBounds(b, {
       padding: viewPadding(),
-      maxZoom: 7,
+      // A single result is worth zooming in on; a spread needs the overview.
+      maxZoom: list.length === 1 ? 11 : 7,
       duration: (animate && !reduceMotion) ? 650 : 0
     });
   }
@@ -1040,12 +1237,20 @@ body{
     var shown = Object.create(null);
     list.forEach(function(r){ shown[r.id] = true; });
 
-    records.forEach(function(r){ r.wrap.hidden = !shown[r.id]; });
+    // Re-feeding the source (rather than a layer filter) means cluster counts
+    // describe the filtered set, not the whole dataset.
+    var src = map.getSource(SRC);
+    if (src) src.setData(collectionOf(list));
+    visibleList = list;
 
-    el.count.innerHTML = "Showing <b>" + list.length + "</b> of " + records.length;
+    // Two phrasings; CSS picks one, so the filter bar stays two rows on a phone.
+    el.count.innerHTML =
+      '<span class="lbl-long">Showing <b>' + list.length + '</b> of ' + records.length + '</span>'
+      + '<span class="lbl-short"><b>' + list.length + '</b>/' + records.length + '</span>';
     el.resetFilters.hidden = !isDirty();
+    el.listBtn.hidden = !list.length;
 
-    // A filtered-out pin must not leave its panel open behind it.
+    // A filtered-out pharmacy must not leave its panel open behind it.
     if (activeRec && !shown[activeRec.id]) closePanel();
 
     if (!list.length){
@@ -1070,6 +1275,11 @@ body{
   el.stateFilter.addEventListener("change", function(){ applyFilters(true); });
   el.mmmFilter.addEventListener("change", function(){ applyFilters(true); });
   el.resetFilters.addEventListener("click", resetAll);
+  el.listBtn.addEventListener("click", function(){
+    openList(visibleList,
+      visibleList.length + (visibleList.length === 1 ? " pharmacy" : " pharmacies"),
+      "Matching your current filters.", el.listBtn);
+  });
 
   /* --- build ------------------------------------------------------------ */
 
@@ -1098,50 +1308,200 @@ body{
     el.mmmFilter.innerHTML = html;
   }
 
-  function build(pharmacies){
-    // Group by rounded coordinate so co-located pins can be fanned out.
-    var groups = {}, order = [];
-    pharmacies.forEach(function(p){
-      var key = p.lat.toFixed(4) + "," + p.lng.toFixed(4);
-      if (!groups[key]){ groups[key] = []; order.push(key); }
-      groups[key].push(p);
-    });
-
-    var id = 0;
-    order.forEach(function(key){
-      var group = groups[key];
-      var offsets = fanOffsets(group.length);
-
-      group.forEach(function(p, i){
-        var intern = takesInterns(p);
-
-        var wrap = document.createElement("div");
-        wrap.className = "pin-wrap";
-
-        var button = document.createElement("button");
-        button.type = "button";
-        button.className = "pin";
-        button.innerHTML = pinSVG(mmmColor(p.mmm), intern);
-        button.setAttribute("aria-label",
-          (p.name || "Pharmacy") + ", " + (p.address || "") + ". " + mmmLabel(p.mmm) + ". "
-          + (intern ? "Taking interns." : "Not currently taking interns."));
-        wrap.appendChild(button);
-
-        var marker = new maplibregl.Marker({
-          element: wrap,
-          anchor: "bottom",
-          // +1.2px drops the anchor from the box edge onto the pin tip.
-          offset: [offsets[i][0], offsets[i][1] + 1.2]
-        }).setLngLat([p.lng, p.lat]).addTo(map);
-
-        var rec = {
-          id: id++, data: p, marker: marker, wrap: wrap, button: button,
-          state: stateOf(p.address), bucket: mmmBucket(p.mmm), intern: intern
+  function collectionOf(list){
+    return {
+      type: "FeatureCollection",
+      features: list.map(function(r){
+        return {
+          type: "Feature",
+          geometry: { type:"Point", coordinates:[r.data.lng, r.data.lat] },
+          properties: { idx: r.id }
         };
-        button.addEventListener("click", function(){ openPanel(rec, button); });
-        records.push(rec);
+      })
+    };
+  }
+
+  /* One DOM marker per unclustered pharmacy currently in view. Keeping them
+     as real <button>s preserves hover, focus and keyboard access, and the
+     viewport bound means the count stays small however big the dataset gets. */
+  var domMarkers = Object.create(null);
+
+  function addMarker(rec){
+    var p = rec.data;
+
+    var wrap = document.createElement("div");
+    wrap.className = "pin-wrap";
+
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "pin";
+    button.innerHTML = pinSVG(mmmColor(p.mmm), rec.intern);
+    button.setAttribute("aria-label",
+      (p.name || "Pharmacy") + ", " + (p.address || "") + ". " + mmmLabel(p.mmm) + ". "
+      + (rec.intern ? "Taking interns." : "Not currently taking interns."));
+    if (activeRec === rec) button.classList.add("is-active");
+    button.addEventListener("click", function(){ openDetail(rec, button); });
+    wrap.appendChild(button);
+
+    var marker = new maplibregl.Marker({
+      element: wrap,
+      anchor: "bottom",
+      offset: [0, 1.2]   // drops the anchor from the box edge onto the pin tip
+    }).setLngLat([p.lng, p.lat]).addTo(map);
+
+    rec.button = button;
+    domMarkers[rec.id] = { marker: marker, rec: rec };
+  }
+
+  var syncQueued = false;
+  function queueSync(){
+    if (syncQueued) return;
+    syncQueued = true;
+    requestAnimationFrame(function(){ syncQueued = false; syncMarkers(); });
+  }
+
+  function syncMarkers(){
+    if (!map.getSource(SRC) || !map.getLayer("clusters")) return;
+
+    var feats = map.querySourceFeatures(SRC, { filter: ["!", ["has", "point_count"]] });
+    var want = Object.create(null);
+
+    for (var i = 0; i < feats.length; i++){
+      var idx = feats[i].properties.idx;
+      if (want[idx]) continue;          // the same point can span two tiles
+      want[idx] = true;
+      if (!domMarkers[idx]) addMarker(records[idx]);
+    }
+
+    Object.keys(domMarkers).forEach(function(k){
+      if (!want[k]){
+        domMarkers[k].marker.remove();
+        domMarkers[k].rec.button = null;
+        delete domMarkers[k];
+      }
+    });
+  }
+
+  // MapLibre 4 returns promises here; tolerate a callback build too.
+  function clusterCall(method, args){
+    var src = map.getSource(SRC);
+    return new Promise(function(resolve, reject){
+      var out = src[method].apply(src, args.concat([function(err, res){
+        if (err) reject(err); else resolve(res);
+      }]));
+      if (out && typeof out.then === "function") out.then(resolve, reject);
+    });
+  }
+
+  // Web-mercator Y as a 0..1 fraction of the world, for the span test below.
+  function mercY(lat){
+    var s = Math.sin(lat * Math.PI / 180);
+    return 0.5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI);
+  }
+
+  /* Clicking a cluster zooms to the extent of what is inside it, rather than
+     to supercluster's expansion zoom — that only ever splits the group by one
+     step, so a city of 35 would take half a dozen clicks to open up.
+
+     If the whole group would still be overlapping at max zoom (listings on the
+     same building, or literally the same coordinate) then no amount of zooming
+     separates them, so the panel lists them instead. */
+  function onClusterClick(e){
+    var f = map.queryRenderedFeatures(e.point, { layers:["clusters"] })[0];
+    if (!f) return;
+    var count = f.properties.point_count;
+
+    clusterCall("getClusterLeaves", [f.properties.cluster_id, 1000, 0]).then(function(leaves){
+      if (!leaves || !leaves.length) return;
+
+      var b = new maplibregl.LngLatBounds();
+      var minLat = 90, maxLat = -90, minLng = 180, maxLng = -180;
+      leaves.forEach(function(l){
+        var c = l.geometry.coordinates;
+        b.extend(c);
+        if (c[0] < minLng) minLng = c[0];
+        if (c[0] > maxLng) maxLng = c[0];
+        if (c[1] < minLat) minLat = c[1];
+        if (c[1] > maxLat) maxLat = c[1];
+      });
+
+      var world = 512 * Math.pow(2, MAX_ZOOM);
+      var dx = ((maxLng - minLng) / 360) * world;
+      var dy = Math.abs(mercY(maxLat) - mercY(minLat)) * world;
+
+      if (Math.max(dx, dy) < CLUSTER_RADIUS * 2){
+        var recs = leaves.map(function(l){ return records[l.properties.idx]; }).filter(Boolean);
+        openList(recs, count + " pharmacies here",
+          "These listings share the same spot on the map.");
+      } else {
+        map.fitBounds(b, {
+          padding: viewPadding(),
+          maxZoom: MAX_ZOOM,
+          duration: reduceMotion ? 0 : 600
+        });
+      }
+    }).catch(function(err){ console.error(err); });
+  }
+
+  function build(pharmacies){
+    pharmacies.forEach(function(p, i){
+      records.push({
+        id: i,
+        data: p,
+        button: null,
+        state: stateOf(p.address),
+        bucket: mmmBucket(p.mmm),
+        intern: takesInterns(p)
       });
     });
+
+    map.addSource(SRC, {
+      type: "geojson",
+      data: collectionOf([]),
+      cluster: true,
+      clusterRadius: CLUSTER_RADIUS,
+      clusterMaxZoom: MAX_ZOOM
+    });
+
+    map.addLayer({
+      id: "clusters",
+      type: "circle",
+      source: SRC,
+      filter: ["has", "point_count"],
+      paint: {
+        // Clusters mix remoteness levels, so they stay brand navy rather than
+        // borrowing a colour off the MMM ramp; the count is the encoding.
+        "circle-color": "#0D0056",
+        "circle-radius": ["step", ["get","point_count"], 15, 10, 19, 50, 24, 200, 30],
+        "circle-stroke-width": 3,
+        "circle-stroke-color": "#ffffff",
+        "circle-pitch-alignment": "map"
+      }
+    });
+
+    map.addLayer({
+      id: "cluster-count",
+      type: "symbol",
+      source: SRC,
+      filter: ["has", "point_count"],
+      layout: {
+        "text-field": ["get", "point_count_abbreviated"],
+        "text-font": ["Noto Sans Bold"],
+        "text-size": ["step", ["get","point_count"], 12, 50, 13, 200, 14],
+        "text-allow-overlap": true,
+        "text-ignore-placement": true
+      },
+      paint: { "text-color": "#ffffff" }
+    });
+
+    map.on("click", "clusters", onClusterClick);
+    map.on("mouseenter", "clusters", function(){ map.getCanvas().style.cursor = "pointer"; });
+    map.on("mouseleave", "clusters", function(){ map.getCanvas().style.cursor = ""; });
+
+    // Re-sync whenever the tiles backing the source change or the view moves.
+    map.on("data", function(e){ if (e.sourceId === SRC && e.isSourceLoaded) queueSync(); });
+    map.on("move", queueSync);
+    map.on("moveend", queueSync);
 
     buildFilters();
     applyFilters(false);

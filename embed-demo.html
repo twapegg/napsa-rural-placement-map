@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Embed preview — NAPSA Rural Placement Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ==========================================================================
+   Embed preview only — NOT part of the map.
+
+   This page mocks up a napsa.org.au content page so the iframe can be checked
+   in context: that the map sits correctly in a 1400px Elementor container,
+   that its chrome does not fight the site header, and that it behaves at
+   phone width. Nothing here ships with the map itself.
+   ========================================================================== */
+:root{
+  --navy:#0D0056;
+  --sky:#60BEFF;
+  --coral:#FF6361;
+  --tint:#F1F4FF;
+  --line:#E0E4F2;
+  --ink-soft:#5A6488;
+}
+*{box-sizing:border-box;}
+body{
+  margin:0;
+  font-family:'Inter',-apple-system,'Segoe UI',sans-serif;
+  font-size:16px;
+  line-height:1.8;
+  color:var(--navy);
+  background:#fff;
+}
+.wrap{max-width:1400px; margin:0 auto; padding:0 20px;}
+
+/* --- mock site header --- */
+.site-header{
+  border-bottom:1px solid var(--line);
+  background:#fff;
+  position:sticky;
+  top:0;
+  z-index:10;
+}
+.site-header .wrap{
+  display:flex;
+  align-items:center;
+  gap:28px;
+  height:76px;
+}
+.logo{
+  font-size:22px;
+  font-weight:800;
+  letter-spacing:-.02em;
+  white-space:nowrap;
+}
+.logo em{color:var(--sky); font-style:normal;}
+.site-nav{
+  display:flex;
+  gap:26px;
+  margin-left:auto;
+  font-size:14px;
+  font-weight:600;
+}
+.site-nav a{color:var(--navy); text-decoration:none;}
+.site-nav a:hover{color:var(--sky);}
+.site-nav a[aria-current]{color:var(--sky);}
+.btn-join{
+  background:var(--sky);
+  color:var(--navy);
+  font-size:14px;
+  font-weight:700;
+  padding:13px 24px;
+  border-radius:50px;
+  text-decoration:none;
+  white-space:nowrap;
+}
+
+/* --- mock page content --- */
+.hero{background:var(--tint); padding:52px 0 44px;}
+.crumbs{font-size:13px; color:var(--ink-soft); margin:0 0 12px;}
+.crumbs a{color:var(--ink-soft);}
+h1{
+  font-size:47px;
+  line-height:1.2;
+  letter-spacing:-.02em;
+  margin:0 0 14px;
+}
+.hero p{margin:0; max-width:66ch; color:var(--ink-soft);}
+
+main{padding:44px 0 64px;}
+main h2{font-size:32px; line-height:1.25; margin:0 0 14px;}
+main p{max-width:74ch;}
+
+/* The embed itself: a plain responsive iframe, which is all a site needs. */
+.embed{
+  margin:34px 0;
+  border:1px solid var(--line);
+  border-radius:10px;
+  overflow:hidden;
+  box-shadow:0 10px 30px rgba(13,0,86,.09);
+  background:#f2f3f0;
+}
+.embed iframe{
+  display:block;
+  width:100%;
+  height:720px;
+  border:0;
+}
+.embed-note{
+  font-size:13px;
+  color:var(--ink-soft);
+  margin:0 0 8px;
+}
+.snippet{
+  background:#0D0056;
+  color:#E4E7F5;
+  border-radius:10px;
+  padding:18px 20px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:12.5px;
+  line-height:1.7;
+  overflow-x:auto;
+  white-space:pre;
+}
+
+.site-footer{
+  background:var(--navy);
+  color:#fff;
+  padding:40px 0;
+  font-size:14px;
+}
+.site-footer .wrap{display:flex; gap:20px; flex-wrap:wrap; justify-content:space-between;}
+
+@media (max-width:860px){
+  .site-nav{display:none;}
+  h1{font-size:32px;}
+  main h2{font-size:24px;}
+  .embed iframe{height:640px;}
+}
+</style>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap">
+    <span class="logo">NAP<em>SA</em></span>
+    <nav class="site-nav">
+      <a href="#">About</a>
+      <a href="#">Events</a>
+      <a href="#" aria-current="page">Students</a>
+      <a href="#">Partners</a>
+      <a href="#">Contact</a>
+    </nav>
+    <a class="btn-join" href="#">How to Join</a>
+  </div>
+</header>
+
+<div class="hero">
+  <div class="wrap">
+    <p class="crumbs"><a href="#">Home</a> &rsaquo; <a href="#">Students</a> &rsaquo; Rural placements</p>
+    <h1>Rural &amp; remote placements</h1>
+    <p>Rural placements give you exposure you simply cannot get in a metro pharmacy — S100 supply, outreach clinics, Aboriginal health services and genuine continuity of care.</p>
+  </div>
+</div>
+
+<main class="wrap">
+  <h2>Find a placement</h2>
+  <p>Use the map below to see which pharmacies are offering intern placements, how remote they are on the Modified Monash scale, and what each one can offer you. Pins that sit on top of each other are grouped — select a group to see everything at that location.</p>
+
+  <div class="embed">
+    <iframe
+      src="index.html"
+      title="NAPSA Rural Placement Map"
+      loading="lazy"
+      referrerpolicy="no-referrer-when-downgrade"
+      allow="geolocation"></iframe>
+  </div>
+
+  <p class="embed-note">To embed this on napsa.org.au, drop an HTML widget into the Elementor page and paste:</p>
+  <div class="snippet">&lt;iframe src="https://napsa.org.au/rural-placement-map/index.html"
+        title="NAPSA Rural Placement Map"
+        style="width:100%;height:720px;border:0;border-radius:10px"
+        loading="lazy"&gt;&lt;/iframe&gt;</div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>National Australian Pharmacy Students' Association</span>
+    <span>Embed preview — not a live page</span>
+  </div>
+</footer>
+
+</body>
+</html>
