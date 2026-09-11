@@ -1741,6 +1741,34 @@ body{
     }).catch(function(err){ console.error(err); });
   }
 
+  /* Double-click drills down towards the pins, instead of stopping to list
+     them. Framing the cluster's own contents always zooms in far enough to
+     break that cluster up, and a group sitting on one spot runs all the way
+     to max zoom, where the pins fan apart — so one double-click resolves a
+     tight group, and a city-sized one takes a couple, each landing on real
+     pharmacies.
+
+     It deliberately does NOT fly to the cluster's centre at pin zoom: for a
+     cluster spanning several towns that centre is the average of them all and
+     can be open country with nothing on it. */
+  function onClusterDblClick(e){
+    var f = map.queryRenderedFeatures(e.point, { layers:["clusters"] })[0];
+    if (!f) return;
+
+    clusterCall("getClusterLeaves", [f.properties.cluster_id, 1000, 0]).then(function(leaves){
+      if (!leaves || !leaves.length) return;
+
+      var b = new maplibregl.LngLatBounds();
+      leaves.forEach(function(l){ b.extend(l.geometry.coordinates); });
+
+      map.fitBounds(b, {
+        padding: viewPadding(),
+        maxZoom: MAX_ZOOM,
+        duration: reduceMotion ? 0 : 600
+      });
+    }).catch(function(err){ console.error(err); });
+  }
+
   function build(pharmacies){
     auditCoordinates(pharmacies);
 
@@ -1797,7 +1825,23 @@ body{
       paint: { "text-color": "#ffffff" }
     });
 
-    map.on("click", "clusters", onClusterClick);
+    /* A double-click fires two clicks of its own, so the single-click action
+       waits briefly to see whether a second one is coming. The delay applies
+       to clusters only — pins stay instant. */
+    var clickWait = null;
+    map.on("click", "clusters", function(e){
+      var at = { point: e.point };
+      if (clickWait) clearTimeout(clickWait);
+      clickWait = setTimeout(function(){
+        clickWait = null;
+        onClusterClick(at);
+      }, 240);
+    });
+    map.on("dblclick", "clusters", function(e){
+      e.preventDefault();          // suppress the map's own double-click zoom
+      if (clickWait){ clearTimeout(clickWait); clickWait = null; }
+      onClusterDblClick(e);
+    });
     map.on("mouseenter", "clusters", function(){ map.getCanvas().style.cursor = "pointer"; });
     map.on("mouseleave", "clusters", function(){ map.getCanvas().style.cursor = ""; });
 
