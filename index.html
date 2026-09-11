@@ -260,6 +260,27 @@ body{
 .listbtn:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
 .listbtn[hidden]{display:none;}
 
+/* Listings held back from the map because their coordinates are suspect. */
+.unmapped{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  font:inherit;
+  font-size:13px;
+  font-weight:700;
+  color:#8A5200;
+  background:#FFF4E2;
+  border:1px solid #F2D9AE;
+  border-radius:var(--r-pill);
+  padding:7px 14px;
+  cursor:pointer;
+  white-space:nowrap;
+  transition:background .18s ease;
+}
+.unmapped:hover{background:#FFEBCD;}
+.unmapped:focus-visible{outline:3px solid var(--coral); outline-offset:2px;}
+.unmapped[hidden]{display:none;}
+
 /* --- sponsor ----------------------------------------------------------- */
 .sponsor{
   display:inline-flex;
@@ -564,6 +585,15 @@ body{
   line-height:1.5;
   color:var(--ink-soft);
 }
+.loc-note{
+  margin:7px 0 0;
+  font-size:12px;
+  line-height:1.45;
+  color:#8A5200;
+  background:#FFF4E2;
+  border-radius:6px;
+  padding:6px 9px;
+}
 .badges{display:flex; flex-wrap:wrap; gap:7px; margin-top:13px;}
 .badge{
   display:inline-flex;
@@ -653,6 +683,7 @@ body{
 }
 .tag-ok{background:var(--ok-tint); color:var(--ok);}
 .tag-closed{background:var(--closed-tint); color:var(--closed);}
+.tag-warn{background:#FFF4E2; color:#8A5200;}
 .plist-go{
   flex:none;
   width:7px; height:7px;
@@ -768,6 +799,14 @@ body{
 
     <button type="button" class="reset" id="resetFilters" hidden>Reset</button>
     <p class="count" id="count" aria-live="polite"></p>
+    <button type="button" class="unmapped" id="unmapped" hidden>
+      <svg width="14" height="13" viewBox="0 0 14 13" aria-hidden="true">
+        <path d="M7 1.2 13 11.8H1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+        <path d="M7 5.4v2.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+        <circle cx="7" cy="9.9" r=".9" fill="currentColor"/>
+      </svg>
+      <span></span>
+    </button>
     <button type="button" class="listbtn" id="listBtn" hidden>
       <svg width="13" height="13" viewBox="0 0 13 13" aria-hidden="true">
         <path d="M1 2h11M1 6.5h11M1 11h11" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
@@ -886,6 +925,71 @@ body{
     return m ? m[1] : "";
   }
 
+  /* --- coordinate audit --------------------------------------------------
+     Some listings arrive from the sheet carrying another row's coordinates,
+     which puts a pin roughly a thousand kilometres from the address on it —
+     a Bathurst NSW pharmacy was appearing in the group at Yeppoon QLD.
+
+     Every record is checked against the state named in its own address.
+     Anything that fails is either repaired from the table below or, if there
+     is no entry for it, left off the map entirely: a pin in the wrong state
+     is worse than no pin, and the listing is still reachable in the list.
+
+     Generous state boxes — they overlap at the borders, so a border-town
+     address can never be flagged by mistake. */
+  var STATE_BOX = {
+    NSW:[-37.6,-28.1,140.9,153.7], VIC:[-39.3,-33.9,140.9,150.1],
+    QLD:[-29.3, -9.0,137.9,153.6], SA: [-38.2,-25.9,128.9,141.1],
+    WA: [-35.2,-13.6,112.8,129.1], TAS:[-43.7,-39.1,143.8,148.6],
+    NT: [-26.1,-10.9,128.9,138.1], ACT:[-35.95,-35.1,148.7,149.5]
+  };
+
+  /* Repairs, geocoded from each listing's own address (OpenStreetMap).
+     These are applied ONLY to a record that fails the check above, so they
+     retire themselves as soon as the source data is corrected — they can
+     never override a good coordinate. Fixing the sheet is still the real
+     fix; this only stops the map lying in the meantime. */
+  var COORD_FIXES = {
+    "terrywhite chemmart bathurst": {
+      lat: -33.41042, lng: 149.57987,
+      was: "Yeppoon QLD", note: "Stewart St, Bathurst NSW"
+    },
+    "sarina discount drug store": {
+      lat: -21.38770, lng: 149.28638, approx: true,
+      was: "Bathurst NSW", note: "Sarina Beach QLD"
+    }
+  };
+
+  function inState(lat, lng, st){
+    var b = STATE_BOX[st];
+    if (!b) return true;                       // unknown state — nothing to check
+    return lat >= b[0] && lat <= b[1] && lng >= b[2] && lng <= b[3];
+  }
+
+  function auditCoordinates(list){
+    var unmapped = [];
+    list.forEach(function(p){
+      var st = stateOf(p.address);
+      if (!st || inState(p.lat, p.lng, st)) return;
+
+      var fix = COORD_FIXES[String(p.name || "").trim().toLowerCase()];
+      if (fix && inState(fix.lat, fix.lng, st)){
+        console.warn("Coordinate repaired: " + p.name + " was plotting in "
+          + fix.was + "; moved to " + fix.note + ". Fix this row at the source.");
+        p.lat = fix.lat;
+        p.lng = fix.lng;
+        p.approxLocation = !!fix.approx;
+      } else {
+        console.warn("Coordinate rejected: " + p.name + " has an address in "
+          + st + " but coordinates at " + p.lat.toFixed(4) + "," + p.lng.toFixed(4)
+          + ". Left off the map.");
+        p.badLocation = st;
+        unmapped.push(p.name);
+      }
+    });
+    return unmapped;
+  }
+
   // "Yes" / "No" from the source sheet; anything else counts as not taking.
   function takesInterns(p){
     return /^\s*y/i.test(String(p.internPosition == null ? "" : p.internPosition));
@@ -958,6 +1062,7 @@ body{
     mmmFilter: document.getElementById("mmmFilter"),
     resetFilters: document.getElementById("resetFilters"),
     listBtn: document.getElementById("listBtn"),
+    unmapped: document.getElementById("unmapped"),
     count: document.getElementById("count"),
     legend: document.getElementById("legend")
   };
@@ -1104,6 +1209,7 @@ body{
             + (rec.intern
                 ? '<span class="tag tag-ok">' + ICON_OK + 'Interns</span>'
                 : '<span class="tag tag-closed">' + ICON_NO + 'No interns</span>')
+            + (rec.unmapped ? '<span class="tag tag-warn">Not on map</span>' : "")
           + '</span>'
         + '</span>'
         + '<span class="plist-go" aria-hidden="true"></span>'
@@ -1143,7 +1249,8 @@ body{
         + '" target="_blank" rel="noopener noreferrer">Directions</a>';
     }
     // Reached from a list, so where it actually sits is not yet obvious.
-    if (fromList){
+    // Nothing to show for a listing that is deliberately off the map.
+    if (fromList && !rec.unmapped){
       actions += '<button type="button" class="btn btn-ghost" id="showOnMap">Show on map</button>';
     }
 
@@ -1159,6 +1266,11 @@ body{
         + back
         + '<h2 id="panelTitle" tabindex="-1">' + esc(p.name) + '</h2>'
         + (p.address ? '<p class="address">' + esc(p.address) + '</p>' : "")
+        + (rec.unmapped
+            ? '<p class="loc-note">Not shown on the map — the address and the supplied coordinates disagree.</p>'
+            : rec.approx
+              ? '<p class="loc-note">Pin shows the town centre, not the exact shopfront.</p>'
+              : "")
         + '<div class="badges">'
           + '<span class="badge"><span class="dot" style="background:' + esc(color) + '"></span>MMM '
             + esc(p.mmm || "—") + ' · ' + esc(mmmLabel(p.mmm)) + '</span>'
@@ -1268,7 +1380,8 @@ body{
     return !el.internOnly.checked || el.stateFilter.value !== "" || el.mmmFilter.value !== "";
   }
 
-  function fitTo(list, animate){
+  function fitTo(records_, animate){
+    var list = mappable(records_);
     if (!list.length) return;
     var b = new maplibregl.LngLatBounds();
     list.forEach(function(r){ b.extend([r.data.lng, r.data.lat]); });
@@ -1297,6 +1410,18 @@ body{
       + '<span class="lbl-short"><b>' + list.length + '</b>/' + records.length + '</span>';
     el.resetFilters.hidden = !isDirty();
     el.listBtn.hidden = !list.length;
+
+    // A listing kept off the map must not vanish quietly.
+    var offMap = list.filter(function(r){ return r.unmapped; });
+    el.unmapped.hidden = !offMap.length;
+    if (offMap.length){
+      el.unmapped.querySelector("span").textContent = offMap.length + " not on map";
+      el.unmapped.onclick = function(){
+        openList(offMap, offMap.length + " not shown on the map",
+          "The address and the coordinates for these disagree, so they are not pinned.",
+          el.unmapped);
+      };
+    }
 
     // A filtered-out pharmacy must not leave its panel open behind it.
     if (activeRec && !shown[activeRec.id]) closePanel();
@@ -1356,10 +1481,14 @@ body{
     el.mmmFilter.innerHTML = html;
   }
 
+  function mappable(list){
+    return list.filter(function(r){ return !r.unmapped; });
+  }
+
   function collectionOf(list){
     return {
       type: "FeatureCollection",
-      features: list.map(function(r){
+      features: mappable(list).map(function(r){
         return {
           type: "Feature",
           geometry: { type:"Point", coordinates:[r.data.lng, r.data.lat] },
@@ -1613,6 +1742,8 @@ body{
   }
 
   function build(pharmacies){
+    auditCoordinates(pharmacies);
+
     pharmacies.forEach(function(p, i){
       records.push({
         id: i,
@@ -1620,7 +1751,10 @@ body{
         button: null,
         state: stateOf(p.address),
         bucket: mmmBucket(p.mmm),
-        intern: takesInterns(p)
+        intern: takesInterns(p),
+        // Address and coordinates disagree and there is no repair for it.
+        unmapped: !!p.badLocation,
+        approx: !!p.approxLocation
       });
     });
 
