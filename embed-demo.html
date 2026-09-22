@@ -172,16 +172,18 @@ main p{max-width:74ch;}
     <iframe
       src="index.html"
       title="NAPSA Rural Placement Map"
-      loading="lazy"
-      referrerpolicy="no-referrer-when-downgrade"
-      allow="geolocation"></iframe>
+      loading="lazy"></iframe>
   </div>
 
-  <p class="embed-note">To embed this on napsa.org.au, drop an HTML widget into the Elementor page and paste:</p>
-  <div class="snippet">&lt;iframe src="https://napsa.org.au/rural-placement-map/index.html"
-        title="NAPSA Rural Placement Map"
-        style="width:100%;height:720px;border:0;border-radius:10px"
-        loading="lazy"&gt;&lt;/iframe&gt;</div>
+  <p class="embed-note">To embed this on napsa.org.au, drop an HTML widget into the Elementor page and paste (see DEPLOY.md):</p>
+  <div class="snippet">&lt;div style="position:relative;width:100%;height:720px;max-height:85vh;
+            border:1px solid #E0E4F2;border-radius:10px;overflow:hidden"&gt;
+  &lt;iframe
+    src="https://twapegg.github.io/napsa-rural-placement-map/"
+    title="NAPSA Rural Placement Map"
+    loading="lazy"
+    style="position:absolute;inset:0;width:100%;height:100%;border:0"&gt;&lt;/iframe&gt;
+&lt;/div&gt;</div>
 </main>
 
 <footer class="site-footer">
