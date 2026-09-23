@@ -76,7 +76,7 @@ For a row to appear it needs:
 |---|---|
 | `lat` / `lng` | Real numbers. A row without them is skipped entirely. |
 | `address` | Must name the state. The state is also what the state filter uses. |
-| `internPosition` | `Yes` to show under the default "Taking interns only" view. Anything else is treated as not taking interns and is hidden until that toggle is switched off. |
+| `internPosition` | `Yes` gives a solid pin and a "Taking interns" badge, and keeps the row visible when someone switches on the "Taking interns only" filter. Anything else is drawn as a hollow pin marked "Not currently taking interns". The map opens with no filters set, so every row shows by default. |
 | `mmm` | 1–7. Sets the pin colour and the remoteness label. Missing, and it reads "Remoteness not recorded". |
 
 `accommodation` may be left empty — the panel then says "Not listed — ask the

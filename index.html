@@ -123,7 +123,7 @@ body{
   font-size:13px;
   line-height:1.45;
   color:var(--ink-soft);
-  max-width:46ch;
+  max-width:62ch;
 }
 
 /* --- filter bar --------------------------------------------------------
@@ -768,7 +768,7 @@ body{
   <header class="topbar">
     <div class="brand">
       <h1>NAPSA Rural Placement Map</h1>
-      <p>Pharmacies offering intern placements across rural and remote Australia. Select a pin to see what each one offers.</p>
+      <p>Discover pharmacy placement opportunities across rural and remote Australia. Explore the map and select a pin to see what each pharmacy offers.</p>
     </div>
 
     <a class="sponsor" href="https://locumco.com.au" target="_blank" rel="noopener noreferrer"
@@ -779,7 +779,7 @@ body{
 
   <div class="filterbar">
     <label class="switch">
-      <input type="checkbox" id="internOnly" checked>
+      <input type="checkbox" id="internOnly">
       <span class="track" aria-hidden="true"></span>
       <span class="lbl-long">Taking interns only</span>
       <span class="lbl-short">Interns only</span>
@@ -1376,8 +1376,9 @@ body{
     });
   }
 
+  // No filter is on by default; any that is makes the view "dirty".
   function isDirty(){
-    return !el.internOnly.checked || el.stateFilter.value !== "" || el.mmmFilter.value !== "";
+    return el.internOnly.checked || el.stateFilter.value !== "" || el.mmmFilter.value !== "";
   }
 
   function fitTo(records_, animate){
@@ -1438,7 +1439,7 @@ body{
   }
 
   function resetAll(){
-    el.internOnly.checked = true;
+    el.internOnly.checked = false;
     el.stateFilter.value = "";
     el.mmmFilter.value = "";
     applyFilters(true);
