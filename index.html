@@ -844,7 +844,7 @@ body{
           </div>
           <div>
             <svg width="15" height="19" viewBox="0 0 28 36" aria-hidden="true"><path d="M14 34.8C14 34.8 25 21.5 25 14A11 11 0 1 0 3 14C3 21.5 14 34.8 14 34.8Z" fill="#fff" stroke="#2b6ecd" stroke-width="2.6"/><circle cx="14" cy="14" r="3.6" fill="#2b6ecd" opacity=".5"/></svg>
-            Not currently taking interns
+            Not taking interns, or not stated
           </div>
         </div>
       </div>
@@ -969,6 +969,12 @@ body{
   function auditCoordinates(list){
     var unmapped = [];
     list.forEach(function(p){
+      if (p.noCoords){
+        console.warn("No coordinates: " + p.name + ". Left off the map.");
+        p.badLocation = "none";
+        unmapped.push(p.name);
+        return;
+      }
       var st = stateOf(p.address);
       if (!st || inState(p.lat, p.lng, st)) return;
 
@@ -990,9 +996,18 @@ body{
     return unmapped;
   }
 
-  // "Yes" / "No" from the source sheet; anything else counts as not taking.
-  function takesInterns(p){
-    return /^\s*y/i.test(String(p.internPosition == null ? "" : p.internPosition));
+  // "Yes" / "No" from the source sheet. Only a clear Yes counts as taking;
+  // a blank is recorded as not stated rather than asserted as a No.
+  function internField(p){
+    return String(p.internPosition == null ? "" : p.internPosition);
+  }
+  function takesInterns(p){ return /^\s*y/i.test(internField(p)); }
+  function internStated(p){ return /^\s*(y|n)/i.test(internField(p)); }
+
+  function internLabel(rec, short){
+    if (rec.intern) return short ? "Interns" : "Taking interns";
+    if (!rec.internKnown) return short ? "Interns: not stated" : "Intern availability not stated";
+    return short ? "No interns" : "Not currently taking interns";
   }
 
   function esc(str){
@@ -1208,8 +1223,12 @@ body{
             + '<span class="tag">MMM ' + esc(p.mmm || "—") + '</span>'
             + (rec.intern
                 ? '<span class="tag tag-ok">' + ICON_OK + 'Interns</span>'
-                : '<span class="tag tag-closed">' + ICON_NO + 'No interns</span>')
-            + (rec.unmapped ? '<span class="tag tag-warn">Not on map</span>' : "")
+                : rec.internKnown
+                  ? '<span class="tag tag-closed">' + ICON_NO + 'No interns</span>'
+                  : '<span class="tag">' + esc(internLabel(rec, true)) + '</span>')
+            + (rec.unmapped
+                ? '<span class="tag tag-warn">' + (rec.data.badLocation === "none" ? "No coordinates" : "Not on map") + '</span>'
+                : "")
           + '</span>'
         + '</span>'
         + '<span class="plist-go" aria-hidden="true"></span>'
@@ -1267,7 +1286,9 @@ body{
         + '<h2 id="panelTitle" tabindex="-1">' + esc(p.name) + '</h2>'
         + (p.address ? '<p class="address">' + esc(p.address) + '</p>' : "")
         + (rec.unmapped
-            ? '<p class="loc-note">Not shown on the map — the address and the supplied coordinates disagree.</p>'
+            ? '<p class="loc-note">' + (rec.data.badLocation === "none"
+                ? "Not shown on the map — this listing has no coordinates yet."
+                : "Not shown on the map — the address and the supplied coordinates disagree.") + '</p>'
             : rec.approx
               ? '<p class="loc-note">Pin shows the town centre, not the exact shopfront.</p>'
               : "")
@@ -1276,7 +1297,9 @@ body{
             + esc(p.mmm || "—") + ' · ' + esc(mmmLabel(p.mmm)) + '</span>'
           + (rec.intern
               ? '<span class="badge badge-ok">' + ICON_OK + 'Taking interns</span>'
-              : '<span class="badge badge-closed">' + ICON_NO + 'Not currently taking interns</span>')
+              : rec.internKnown
+                ? '<span class="badge badge-closed">' + ICON_NO + 'Not currently taking interns</span>'
+                : '<span class="badge">' + esc(internLabel(rec)) + '</span>')
         + '</div>'
       + '</div>'
       + '<div class="panel-body">'
@@ -1419,7 +1442,7 @@ body{
       el.unmapped.querySelector("span").textContent = offMap.length + " not on map";
       el.unmapped.onclick = function(){
         openList(offMap, offMap.length + " not shown on the map",
-          "The address and the coordinates for these disagree, so they are not pinned.",
+          "These have no coordinates, or coordinates that contradict their address, so they are not pinned.",
           el.unmapped);
       };
     }
@@ -1558,7 +1581,7 @@ body{
     var rec = entry.rec, p = rec.data;
     var base = (p.name || "Pharmacy") + ", " + (p.address || "") + ". "
       + mmmLabel(p.mmm) + ". "
-      + (rec.intern ? "Taking interns." : "Not currently taking interns.");
+      + internLabel(rec) + ".";
     entry.button.setAttribute("aria-label",
       stack && stack.length > 1
         ? stack.length + " pharmacies at this location, including " + base
@@ -1781,7 +1804,8 @@ body{
         state: stateOf(p.address),
         bucket: mmmBucket(p.mmm),
         intern: takesInterns(p),
-        // Address and coordinates disagree and there is no repair for it.
+        internKnown: internStated(p),
+        // No coordinates, or address and coordinates disagree with no repair.
         unmapped: !!p.badLocation,
         approx: !!p.approxLocation
       });
@@ -1872,16 +1896,62 @@ body{
     }
   });
 
+  /* A request that never answers must not leave the spinner up forever. The
+     webhook has been seen to accept the connection and then send nothing for
+     over a minute while the workflow behind it runs, which without a deadline
+     is indistinguishable from "still loading".
+
+     The deadline is generous — the feed has been measured taking 78s to answer
+     once the sheet grew — so the map still gets there on a slow day. What
+     changes is that after a few seconds the overlay says so, instead of
+     looking frozen. Cloudflare in front of the webhook cuts connections at
+     100s, so there is no point waiting past that. */
+  var FETCH_TIMEOUT_MS = 95000;
+  var SLOW_NOTICE_MS = 8000;
+
   function load(){
     showOverlay("Loading pharmacies", "Fetching the latest placement listings.", { spinner:true });
-    fetch(DATA_URL)
+
+    var ctrl = (typeof AbortController === "function") ? new AbortController() : null;
+    var timer = setTimeout(function(){ if (ctrl) ctrl.abort(); }, FETCH_TIMEOUT_MS);
+    var slow = setTimeout(function(){
+      el.overlayTitle.textContent = "Still loading…";
+      el.overlayText.textContent = "The listings service is responding slowly right now. "
+        + "This can take up to a minute or so — thanks for your patience.";
+    }, SLOW_NOTICE_MS);
+
+    fetch(DATA_URL, ctrl ? { signal: ctrl.signal } : undefined)
       .then(function(res){
         if (!res.ok) throw new Error("HTTP " + res.status);
         return res.json();
       })
       .then(function(data){
+        clearTimeout(slow);
         var pharmacies = (data && data.pharmacies ? data.pharmacies : []).filter(function(p){
-          return p && isFinite(p.lat) && isFinite(p.lng);
+          return p && String(p.name || "").trim();
+        });
+
+        /* Normalise what the sheet hands over. Rows are kept even without
+           coordinates: a pharmacy that has filled in the form should still be
+           findable in the list, and dropping it here would hide the fact that
+           its row is broken. */
+        pharmacies.forEach(function(p){
+          p.name = String(p.name).trim();
+          p.address = String(p.address == null ? "" : p.address).trim();
+
+          // "-23.13" can arrive as text; isFinite accepts it, the GeoJSON
+          // source and toFixed() would not. Blank or null means no coordinates.
+          var hasLat = p.lat !== "" && p.lat != null && isFinite(p.lat);
+          var hasLng = p.lng !== "" && p.lng != null && isFinite(p.lng);
+          if (hasLat && hasLng){ p.lat = +p.lat; p.lng = +p.lng; }
+          else { p.lat = null; p.lng = null; p.noCoords = true; }
+
+          // A number-typed phone column loses its leading zero on the way out;
+          // every Australian number is ten digits, so nine means one was lost.
+          if (typeof p.phone === "number"){
+            var ph = String(p.phone);
+            p.phone = ph.length === 9 ? "0" + ph : ph;
+          }
         });
         if (!pharmacies.length){
           showOverlay("No listings yet", "There are no pharmacies to show on the map right now.");
@@ -1891,11 +1961,18 @@ body{
         else pendingData = pharmacies;
       })
       .catch(function(err){
+        clearTimeout(slow);
         console.error(err);
-        showOverlay("Couldn’t load the map data",
-          "Something went wrong fetching the pharmacy listings.",
+        var timedOut = err && err.name === "AbortError";
+        showOverlay(
+          timedOut ? "The listings are taking too long" : "Couldn’t load the map data",
+          timedOut
+            ? "The pharmacy list didn’t answer within " + Math.round(FETCH_TIMEOUT_MS / 1000)
+              + " seconds. The service may be busy — try again in a moment."
+            : "Something went wrong fetching the pharmacy listings.",
           { action:"Try again", onAction:load });
-      });
+      })
+      .then(function(){ clearTimeout(timer); clearTimeout(slow); });
   }
 
   load();
