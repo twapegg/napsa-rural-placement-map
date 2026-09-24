@@ -1,0 +1,271 @@
+{
+ "name": "NAPSA Map - Get Pharmacies",
+ "nodes": [
+  {
+   "parameters": {
+    "path": "napsa-pharmacies",
+    "responseMode": "responseNode",
+    "options": {}
+   },
+   "id": "webhook1",
+   "name": "Webhook",
+   "position": [
+    220,
+    300
+   ],
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2,
+   "webhookId": "20f4e629-e82b-4fbf-8d14-792ea5134d4f"
+  },
+  {
+   "parameters": {
+    "documentId": {
+     "__rl": true,
+     "value": "1zPnYOpEGMP5E7pPl4-Z_k2GCq5ptni6Y2ZA-C7-20A8",
+     "mode": "list",
+     "cachedResultName": "n8n NAPSA Rural Placement Map",
+     "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zPnYOpEGMP5E7pPl4-Z_k2GCq5ptni6Y2ZA-C7-20A8/edit?usp=drivesdk"
+    },
+    "sheetName": {
+     "__rl": true,
+     "value": "gid=0",
+     "mode": "list",
+     "cachedResultName": "Sheet1",
+     "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1zPnYOpEGMP5E7pPl4-Z_k2GCq5ptni6Y2ZA-C7-20A8/edit#gid=0"
+    },
+    "options": {}
+   },
+   "id": "sheets1",
+   "name": "Get Pharmacies",
+   "position": [
+    440,
+    300
+   ],
+   "type": "n8n-nodes-base.googleSheets",
+   "typeVersion": 4.5,
+   "credentials": {
+    "googleSheetsOAuth2Api": {
+     "id": "yJKU1wWxw2pNKHHi",
+     "name": "GoogleAuth"
+    }
+   },
+   "notes": "PLACEHOLDER: reselect the document and sheet tab in the n8n editor using the From List picker."
+  },
+  {
+   "id": "getcached1",
+   "name": "Get Cached Coords",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1,
+   "position": [
+    440,
+    480
+   ],
+   "parameters": {
+    "dataTableId": {
+     "mode": "id",
+     "value": "9uwqmyXZBCGX39Ia"
+    },
+    "operation": "get",
+    "returnAll": true
+   },
+   "executeOnce": true
+  },
+  {
+   "parameters": {
+    "jsCode": "// Attach Cached Coords  (Code node, \"Run Once for All Items\")\n// Input: every row of the coordinate cache (Get Cached Coords, executeOnce).\n// Output: one item per sheet row, with coordinates from the sheet or the cache\n// where those are present AND land in the state the address names. Anything\n// else is flagged for geocoding.\n\nconst STATE_BOX = {\n  NSW:[-37.6,-28.1,140.9,153.7], VIC:[-39.3,-33.9,140.9,150.1],\n  QLD:[-29.3, -9.0,137.9,153.6], SA: [-38.2,-25.9,128.9,141.1],\n  WA: [-35.2,-13.6,112.8,129.1], TAS:[-43.7,-39.1,143.8,148.6],\n  NT: [-26.1,-10.9,128.9,138.1], ACT:[-35.95,-35.1,148.7,149.5]\n};\nconst norm = s => String(s == null ? '' : s).replace(/​/g, '').replace(/\\s+/g, ' ').trim();\nconst stateOf = a => { const m = /\\b(NSW|VIC|QLD|SA|WA|TAS|NT|ACT)\\b/.exec(a || ''); return m ? m[1] : null; };\nconst inState = (lat, lng, st) => { const b = STATE_BOX[st]; return !b || (lat >= b[0] && lat <= b[1] && lng >= b[2] && lng <= b[3]); };\nconst num = v => { if (v === '' || v == null) return null; const n = parseFloat(v); return isFinite(n) ? n : null; };\n\n// Cache keyed on the normalised name, so trailing spaces and newlines in the\n// sheet can no longer make an existing entry invisible.\nconst cache = {};\nfor (const it of items) {\n  const r = it.json || {};\n  const k = norm(r.pharmacyName);\n  if (k && !cache[k]) cache[k] = r;\n}\n\nreturn $('Get Pharmacies').all().map(it => {\n  const row = it.json;\n  const name = norm(row['Pharmacy Name']);\n  const address = norm(row['Address']);\n  const st = stateOf(address);\n\n  let lat = null, lng = null, source = null;\n\n  // 1. Coordinates typed into the sheet win, if they are plausible.\n  const sl = num(row['Latitude']), sg = num(row['Longitude']);\n  if (sl !== null && sg !== null && (!st || inState(sl, sg, st))) { lat = sl; lng = sg; source = 'sheet'; }\n\n  // 2. Otherwise the cache, again only if it agrees with the address.\n  if (!source) {\n    const c = cache[name];\n    const cl = c ? num(c.latitude) : null, cg = c ? num(c.longitude) : null;\n    if (cl !== null && cg !== null && (!st || inState(cl, cg, st))) { lat = cl; lng = cg; source = 'cache'; }\n  }\n\n  return { json: {\n    ...row,\n    'Pharmacy Name': name,\n    'Address': address,\n    Latitude: lat, Longitude: lng,\n    _state: st, _coordSource: source, _needsGeocode: !source, _newlyGeocoded: false\n  } };\n});\n"
+   },
+   "id": "attach-cached-coords",
+   "name": "Attach Cached Coords",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    660,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// Geocode Missing  (Code node, \"Run Once for All Items\")\n// Geocodes rows flagged _needsGeocode, a few per request, one at a time,\n// inside the same loop iteration as the row — so a result can never be\n// attributed to a different pharmacy. Everything else passes straight through.\n\nconst MAX_NEW_PER_REQUEST = 6;   // worst case ~6 x (3 queries x 1.1s) ≈ 20s; the rest heal on later requests\nconst SPACING_MS = 1100;         // Nominatim usage policy: at most 1 request per second\nconst UA = 'NAPSA-Rural-Placement-Map/1.0 (locumco.com.au)';\n\nconst STATE_BOX = {\n  NSW:[-37.6,-28.1,140.9,153.7], VIC:[-39.3,-33.9,140.9,150.1],\n  QLD:[-29.3, -9.0,137.9,153.6], SA: [-38.2,-25.9,128.9,141.1],\n  WA: [-35.2,-13.6,112.8,129.1], TAS:[-43.7,-39.1,143.8,148.6],\n  NT: [-26.1,-10.9,128.9,138.1], ACT:[-35.95,-35.1,148.7,149.5]\n};\nconst inState = (lat, lng, st) => { const b = STATE_BOX[st]; return !b || (lat >= b[0] && lat <= b[1] && lng >= b[2] && lng <= b[3]); };\nconst sleep = ms => new Promise(r => setTimeout(r, ms));\nconst STREET = '(?:St|Street|Rd|Road|Ave|Avenue|Hwy|Highway|Dr|Drive|Pde|Parade|Tce|Terrace|Ln|Lane|Cres|Crescent|Pl|Place|Blvd|Boulevard|Way|Esp|Esplanade|Mall|Cct|Circuit|Ct|Court)';\n\n// Pull \"Suburb, STATE, postcode\" out of a free-text address. Tolerates the\n// usual variations — \"Coffs Harbour, NSW 2450\", \"Tamworth NSW, 2340\",\n// \"Yeppoon QLD 4703\" — by locating the state code and reading around it.\nfunction locality(address) {\n  const parts = address.split(',').map(s => s.trim()).filter(Boolean);\n  for (let i = 0; i < parts.length; i++) {\n    const m = /^(.*?)\\b(NSW|VIC|QLD|SA|WA|TAS|NT|ACT)\\b(.*)$/.exec(parts[i]);\n    if (!m) continue;\n    let suburb = m[1].replace(/[\\d\\/-]+$/, '').trim();\n    if (!suburb && i > 0) suburb = parts[i - 1].replace(/^(shop|unit|suite|lot|level)\\s*\\S+\\s*/i, '').trim();\n    const pc = /\\b(\\d{4})\\b/.exec(m[3] + ' ' + (parts[i + 1] || ''));\n    if (!suburb) return null;\n    return { suburb, state: m[2], postcode: pc ? pc[1] : null };\n  }\n  return null;\n}\n\n// Most to least specific. Shop numbers and centre names are what trip\n// Nominatim up, so later forms peel those away: street-number onwards, then\n// the street with the locality, then the locality alone — which at least\n// puts the pin in the right town.\nfunction candidates(address) {\n  const out = [address];\n  const loc = locality(address);\n  const locStr = loc ? [loc.suburb, loc.state, loc.postcode, 'Australia'].filter(Boolean).join(', ') : null;\n\n  const m = new RegExp('(\\\\d+[A-Za-z]?(?:\\\\s*[-\\\\u2013]\\\\s*\\\\d+)?\\\\s+[^,]*?\\\\b' + STREET + '\\\\b[^,]*),?\\\\s*(.*)$', 'i').exec(address);\n  if (m) out.push((m[1] + ', ' + m[2]).replace(/^[ ,]+|[ ,]+$/g, ''));\n\n  if (locStr) {\n    const street = address.split(',').map(s => s.trim())\n      .find(seg => new RegExp('\\\\b' + STREET + '\\\\b', 'i').test(seg) && !/\\b(NSW|VIC|QLD|SA|WA|TAS|NT|ACT)\\b/.test(seg));\n    if (street) out.push(street.replace(/^(shop|unit|suite|lot|level)\\s*\\S+\\s*/i, '') + ', ' + locStr);\n    out.push(locStr);\n  }\n  return [...new Set(out.map(s => s.trim()).filter(Boolean))];\n}\n\n// Nominatim's first result is not always the right one: \"Stewart Street,\n// Bathurst\" comes back with a rural Stewart Street in Evans Plains ranked\n// above the one in town. Score each candidate by how many of its own words\n// the address actually contains, and penalise words it invents.\nconst ABBR = [[/\\bst\\b/g,'street'],[/\\brd\\b/g,'road'],[/\\bave?\\b/g,'avenue'],[/\\bhwy\\b/g,'highway'],[/\\bdr\\b/g,'drive'],\n              [/\\bpde\\b/g,'parade'],[/\\btce\\b/g,'terrace'],[/\\bcres\\b/g,'crescent'],[/\\bpl\\b/g,'place'],[/\\bblvd\\b/g,'boulevard'],\n              [/\\bln\\b/g,'lane'],[/\\bct\\b/g,'court'],[/\\bcct\\b/g,'circuit'],[/\\besp\\b/g,'esplanade']];\nconst GENERIC = new Set(['australia','new','south','wales','queensland','victoria','western','northern','territory','tasmania',\n                         'capital','nsw','vic','qld','sa','wa','tas','nt','act','shire','city','council','regional','of','the']);\nfunction tokens(s) {\n  let t = String(s || '').toLowerCase();\n  for (const [re, full] of ABBR) t = t.replace(re, full);\n  return new Set(t.replace(/[^a-z0-9]+/g, ' ').split(' ').filter(w => w.length > 1));\n}\nfunction score(result, address) {\n  const a = tokens(address);\n  let s = 0;\n  for (const w of tokens(result.display_name)) { if (GENERIC.has(w)) continue; s += a.has(w) ? 1 : -0.5; }\n  return s;\n}\n\nasync function query(q) {\n  const url = 'https://nominatim.openstreetmap.org/search?format=json&limit=3&countrycodes=au&q=' + encodeURIComponent(q);\n  const res = await this.helpers.httpRequest({\n    method: 'GET', url, json: true,\n    headers: { 'User-Agent': UA, 'Accept-Language': 'en' }\n  });\n  return Array.isArray(res) ? res : [];\n}\n\nlet budget = MAX_NEW_PER_REQUEST;\nconst out = [];\n\nfor (const it of items) {\n  const row = it.json;\n  if (!row._needsGeocode || budget <= 0) { out.push({ json: row }); continue; }\n  budget--;\n\n  let found = null;\n  for (const q of candidates(row['Address'])) {\n    let results = [];\n    try { results = await query.call(this, q); } catch (e) { results = []; }\n    await sleep(SPACING_MS);\n    // Keep only results inside the right state, then take the best-matching one.\n    const valid = results\n      .map(r => ({ lat: parseFloat(r.lat), lng: parseFloat(r.lon), s: score(r, row['Address']) }))\n      .filter(r => isFinite(r.lat) && isFinite(r.lng) && (!row._state || inState(r.lat, r.lng, row._state)));\n    if (valid.length) {\n      valid.sort((x, y) => y.s - x.s);\n      found = { lat: valid[0].lat, lng: valid[0].lng };\n      break;\n    }\n  }\n\n  out.push({ json: {\n    ...row,\n    Latitude: found ? found.lat : null,\n    Longitude: found ? found.lng : null,\n    _coordSource: found ? 'geocoded' : null,\n    _needsGeocode: !found,\n    _newlyGeocoded: !!found\n  } });\n}\n\nreturn out;\n"
+   },
+   "id": "geocode-missing",
+   "name": "Geocode Missing",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    880,
+    300
+   ]
+  },
+  {
+   "parameters": {
+    "jsCode": "// Map each sheet row into the JSON shape the MapLibre map expects.\nconst pharmacies = items.map(item => {\n  const row = item.json;\n  const num = v => (v === '' || v == null) ? null : (isFinite(parseFloat(v)) ? parseFloat(v) : null);\n  return {\n    name: row['Pharmacy Name'] || '',\n    address: row['Address'] || '',\n    lat: num(row['Latitude']),\n    lng: num(row['Longitude']),\n    mmm: row['MMM'] == null ? '' : String(row['MMM']),\n    contactPerson: row['Contact Person'] || '',\n    email: row['Email'] || '',\n    phone: row['Phone'] == null ? '' : String(row['Phone']),\n    services: row['Services & Experience Offered'] || '',\n    accommodation: row['Accommodation'] || '',\n    internPosition: row['Intern Pharmacist Position'] || ''\n  };\n});\n\nreturn [{ json: { pharmacies } }];\n"
+   },
+   "id": "code1",
+   "name": "Format for Map",
+   "position": [
+    1100,
+    300
+   ],
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2
+  },
+  {
+   "parameters": {
+    "respondWith": "json",
+    "responseBody": "={{ $json }}",
+    "options": {}
+   },
+   "id": "respond1",
+   "name": "Respond to Webhook",
+   "position": [
+    1320,
+    300
+   ],
+   "type": "n8n-nodes-base.respondToWebhook",
+   "typeVersion": 1.1
+  },
+  {
+   "parameters": {
+    "jsCode": "// Write back only what was geocoded on this request.\nreturn items.filter(i => i.json._newlyGeocoded === true);"
+   },
+   "id": "only-new-coordinates",
+   "name": "Only New Coordinates",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1100,
+    480
+   ]
+  },
+  {
+   "parameters": {
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "pharmacyName": "={{ $json['Pharmacy Name'] }}",
+      "latitude": "={{ $json['Latitude'] }}",
+      "longitude": "={{ $json['Longitude'] }}",
+      "address": "={{ $json['Address'] }}"
+     }
+    },
+    "dataTableId": {
+     "mode": "id",
+     "value": "9uwqmyXZBCGX39Ia"
+    },
+    "filters": {
+     "conditions": [
+      {
+       "condition": "eq",
+       "keyName": "pharmacyName",
+       "keyValue": "={{ $json['Pharmacy Name'] }}"
+      }
+     ]
+    },
+    "matchType": "allConditions",
+    "operation": "upsert"
+   },
+   "id": "cachecoords1",
+   "name": "Cache Coordinates",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1,
+   "position": [
+    1320,
+    480
+   ]
+  }
+ ],
+ "connections": {
+  "Webhook": {
+   "main": [
+    [
+     {
+      "node": "Get Pharmacies",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get Pharmacies": {
+   "main": [
+    [
+     {
+      "node": "Get Cached Coords",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get Cached Coords": {
+   "main": [
+    [
+     {
+      "node": "Attach Cached Coords",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Attach Cached Coords": {
+   "main": [
+    [
+     {
+      "node": "Geocode Missing",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Geocode Missing": {
+   "main": [
+    [
+     {
+      "node": "Format for Map",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Only New Coordinates",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Format for Map": {
+   "main": [
+    [
+     {
+      "node": "Respond to Webhook",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Only New Coordinates": {
+   "main": [
+    [
+     {
+      "node": "Cache Coordinates",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "saveDataErrorExecution": "all",
+  "saveDataSuccessExecution": "all",
+  "saveManualExecutions": true,
+  "saveExecutionProgress": true,
+  "availableInMCP": true,
+  "binaryMode": "separate"
+ },
+ "staticData": null
+}

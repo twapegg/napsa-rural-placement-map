@@ -74,8 +74,8 @@ For a row to appear it needs:
 
 | Field | Requirement |
 |---|---|
-| `lat` / `lng` | Real numbers. A row without them is not pinned, but still appears in the list and behind the amber "not on map" button, tagged "No coordinates". |
-| `address` | Must name the state. The state is also what the state filter uses, and what the coordinates are checked against. |
+| `lat` / `lng` | Not typed in — the feed geocodes each address itself (see `n8n/README.md`) and only accepts a result inside the address's state. A row it cannot place is still listed, behind the amber "not on map" button, tagged "No coordinates". |
+| `address` | Must name the state. The state is what the state filter uses, what the geocoder is checked against, and the key to a good pin: "Shop 3, Some Plaza, 12 High St, Town QLD 4000" works; a centre name with no street or state usually will not. |
 | `internPosition` | `Yes` gives a solid pin and a "Taking interns" badge, and keeps the row visible when someone switches on the "Taking interns only" filter. `No` gives a hollow pin marked "Not currently taking interns". **Blank is shown as "not stated"**, not as a No. The map opens with no filters set, so every row shows by default. |
 | `phone` | Keep the column formatted as text. A number-typed column drops the leading zero; the map restores it when it sees nine digits, but that is a guess. |
 | `mmm` | 1–7. Sets the pin colour and the remoteness label. Missing, and it reads "Remoteness not recorded". |
